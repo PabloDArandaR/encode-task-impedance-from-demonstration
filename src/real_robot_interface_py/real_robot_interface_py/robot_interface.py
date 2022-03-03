@@ -17,16 +17,30 @@ class robotInterface(Node):
     '''
     class robotInterface: Communicate with the real robot sending the commands and reading the different sensor values.
     '''
-    def __init__(self, ip: str, dt: float):
+    def __init__(self):
         super().__init__("UR_interface")
-        self.ip = ip
-        print(f"IP is: {self.ip}")
-        self.dt = dt
-        print(f"dt is: {self.dt}")
 
+        # Declare parameters
+        self.declare_parameter("ip")
+        self.declare_parameter("dt")
+
+        # Declare 
+        try:
+            self.ip = self.get_parameter("ip").get_parameter_value().string_value
+            print(f"IP is: {self.ip}")
+        except TypeError as err:
+            print(f"[ERROR] Not possible to set the parameter ip: {err}")
+            sys.exit()
+        try:
+            self.dt = self.get_parameter("dt").get_parameter_value().double_value
+            print(f"dt is: {self.dt}")
+        except TypeError as err:
+            print(f"[ERROR] Not possible to set the parameter dt: {err}")
+            sys.exit()
+
+        # Communication variables with UR
         self.control = RTDEControlInterface(self.ip)
         self.receive = RTDEReceiveInterface(self.ip)
-        #self.io      = RTDEIOInterface(self.ip)
 
         # Publishers
         self.action_subscriber = self.create_subscriber(dataArray, 'action', self.action_callback, 10)
@@ -53,20 +67,14 @@ class robotInterface(Node):
         self.torque_publisher(torque)
         pass
 
-def main(ip, dt = 0.01, args=None):
+def main(args=None):
     rclpy.init(args=args)
 
-    robot = robotInterface(ip, dt)
+    robot = robotInterface()
     rclpy.spin(robot)
     robot.destroy_node()
     rclpy.shutdown()
 
 if __name__=="__main__":
-    if len(sys.argv) < 3:
-        print("[ERROR] Not enough arguments")
-        sys.exit()
     
-    ip = sys.argv[1]
-    dt = float(sys.argv[2])
-
-    main(ip, dt)
+    main()
