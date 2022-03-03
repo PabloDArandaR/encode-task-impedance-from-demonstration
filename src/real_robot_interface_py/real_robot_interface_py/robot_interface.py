@@ -46,7 +46,7 @@ class robotInterface(Node):
         self.action_subscriber = self.create_subscriber(dataArray, 'action', self.action_callback, 10)
 
         # Sensor reading functions
-        self.sensor_timer = self.create_timer(dt, self.sensor_callback)
+        self.sensor_timer = self.create_timer(self.dt, self.sensor_callback)
         self.torque_publisher = self.create_publisher(dataArray, 'force', 10)
         self.q_publisher = self.create_publisher(dataArray, 'q', 10)
         self.dq_publisher = self.create_publisher(dataArray, 'dq', 10)
