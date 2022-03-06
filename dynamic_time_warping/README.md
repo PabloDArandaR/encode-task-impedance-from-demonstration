@@ -4,6 +4,9 @@ References:
 1. https://rtavenar.github.io/blog/dtw.html?fbclid=IwAR0KXb0IF5DUXLIAMBE5Q2lTeGG7yigGyYULEhHvBhLfzXfdWBAmGogTpTg
 2. https://ealizadeh.com/blog/introduction-to-dynamic-time-warping
 
+<img src="Pictures/dtw_diagram.png" width="400">
+<center>simplified diagram</center>
+
 ## Import python modules
 
 
@@ -55,7 +58,7 @@ plt.show()
 ```
 
 
-![png](DynamicTimeWarping_files/DynamicTimeWarping_8_0.png)
+![png](DynamicTimeWarping_files/DynamicTimeWarping_9_0.png)
 
 
 Here, we have two demonstration signals with different amplitude, different time scale, and different starting and ending points. We want to use the first (blue signal) as the template, and preprocess the second (orange signal).
@@ -89,7 +92,7 @@ plt.show()
 ```
 
 
-![png](DynamicTimeWarping_files/DynamicTimeWarping_12_0.png)
+![png](DynamicTimeWarping_files/DynamicTimeWarping_13_0.png)
 
 
 ## Perform Dynamic Time Warping 
@@ -116,7 +119,7 @@ plt.show()
 ```
 
 
-![png](DynamicTimeWarping_files/DynamicTimeWarping_14_0.png)
+![png](DynamicTimeWarping_files/DynamicTimeWarping_15_0.png)
 
 
 Then, compute accumulated cost/distance using dynamic programmin, and find the path with the shortest distance.
@@ -150,7 +153,7 @@ plt.show()
 ```
 
 
-![png](DynamicTimeWarping_files/DynamicTimeWarping_18_0.png)
+![png](DynamicTimeWarping_files/DynamicTimeWarping_19_0.png)
 
 
 Finally, plot the warped output signals
@@ -169,5 +172,5 @@ plt.show()
 ```
 
 
-![png](DynamicTimeWarping_files/DynamicTimeWarping_20_0.png)
+![png](DynamicTimeWarping_files/DynamicTimeWarping_21_0.png)
 
