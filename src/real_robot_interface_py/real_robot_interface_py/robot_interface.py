@@ -14,9 +14,7 @@ def torqueToSpeed(torque: np.array):
     pass
 
 class robotInterface(Node):
-    '''
-    class robotInterface: Communicate with the real robot sending the commands and reading the different sensor values.
-    '''
+    ''' class robotInterface: Communicate with the real robot sending the commands and reading the different sensor values.'''
     def __init__(self):
         super().__init__("UR_interface")
 
@@ -25,29 +23,27 @@ class robotInterface(Node):
         self.declare_parameter("dt")
 
         # Declare 
-        try:
-            self.ip = self.get_parameter("ip").get_parameter_value().string_value
-            print(f"IP is: {self.ip}")
-        except TypeError as err:
-            print(f"[ERROR] Not possible to set the parameter ip: {err}")
+        self.ip = self.get_parameter("ip").get_parameter_value().string_value
+        if self.ip == '':
+            print(f"[ERROR] Incorrect IP input: ({self.ip})")
             sys.exit()
-        try:
-            self.dt = self.get_parameter("dt").get_parameter_value().double_value
-            print(f"dt is: {self.dt}")
-        except TypeError as err:
-            print(f"[ERROR] Not possible to set the parameter dt: {err}")
+        self.dt = self.get_parameter("dt").get_parameter_value().double_value
+        if self.dt == 0:
+            print(f"[ERROR] Incorrect sampling time input: ({self.dt})")
             sys.exit()
-
-        # Communication variables with UR
-        self.control = RTDEControlInterface(self.ip)
-        self.receive = RTDEReceiveInterface(self.ip)
+        print(f"IP is: {self.ip}")
+        print(f"dt is: {self.dt}")
 
         # Publishers
-        self.action_subscriber = self.create_subscriber(dataArray, 'action', self.action_callback, 10)
+        self.action_subscriber = self.create_subscription(dataArray, 'action', self.action_callback, 10)
 
         # Sensor reading and publishing
         self.sensor_timer = self.create_timer(self.dt, self.sensor_callback)
         self.input_publisher = self.create_publisher(dataArray, 'robot_input',10)
+
+        # Communication variables with UR
+        self.control = RTDEControlInterface(self.ip)
+        self.receive = RTDEReceiveInterface(self.ip)
     
     def action_callback(self, msg: dataArray):
         torque = np.reshape(np.array(msg.data), (6,1))
