@@ -45,11 +45,9 @@ class robotInterface(Node):
         # Publishers
         self.action_subscriber = self.create_subscriber(dataArray, 'action', self.action_callback, 10)
 
-        # Sensor reading functions
+        # Sensor reading and publishing
         self.sensor_timer = self.create_timer(self.dt, self.sensor_callback)
-        self.torque_publisher = self.create_publisher(dataArray, 'force', 10)
-        self.q_publisher = self.create_publisher(dataArray, 'q', 10)
-        self.dq_publisher = self.create_publisher(dataArray, 'dq', 10)
+        self.input_publisher = self.create_publisher(dataArray, 'robot_input',10)
     
     def action_callback(self, msg: dataArray):
         torque = np.reshape(np.array(msg.data), (6,1))
@@ -58,14 +56,8 @@ class robotInterface(Node):
         pass
 
     def sensor_callback(self):
-        q = dataArray(data = self.receive.getActualQ())
-        dq = dataArray(data = self.receive.getActualQd())
-        torque = dataArray(data = self.receive.getJointTorques())
-
-        self.q_publisher(q)
-        self.dq_publisher(dq)
-        self.torque_publisher(torque)
-        pass
+        msg = dataArray(self.receive.getActualQ() + self.receive.getActualQd() + self.receive.getJointTorques())
+        self.input_publisher(msg)
 
 def main(args=None):
     rclpy.init(args=args)
