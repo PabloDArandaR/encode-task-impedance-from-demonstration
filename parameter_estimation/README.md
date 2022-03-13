@@ -1,4 +1,6 @@
 
+# Parameter Estimation
+
 <img src="Pictures/paramestimation_diagram.png" width="400">
 <center>simplified diagram</center>
 
