@@ -1,4 +1,7 @@
 
+<img src="Pictures/para.png" width="400">
+<center>simplified diagram</center>
+
 import modules
 
 
@@ -82,7 +85,7 @@ plt.show()
 ```
 
 
-![png](ParameterEstimation_files/ParameterEstimation_9_0.png)
+![png](ParameterEstimation_files/ParameterEstimation_10_0.png)
 
 
 use fake ground truth parameters and external force array to generate the trajectories
@@ -127,7 +130,7 @@ plt.show()
 ```
 
 
-![png](ParameterEstimation_files/ParameterEstimation_11_0.png)
+![png](ParameterEstimation_files/ParameterEstimation_12_0.png)
 
 
 ## Perform parameter estimation
@@ -153,7 +156,7 @@ plt.show()
 ```
 
 
-![png](ParameterEstimation_files/ParameterEstimation_15_0.png)
+![png](ParameterEstimation_files/ParameterEstimation_16_0.png)
 
 
 
@@ -196,7 +199,7 @@ plt.show()
 ```
 
 
-![png](ParameterEstimation_files/ParameterEstimation_20_0.png)
+![png](ParameterEstimation_files/ParameterEstimation_21_0.png)
 
 
 ### Visualize parameter eplisoid
@@ -225,15 +228,13 @@ plt.show()
 
     D:\SDU\courses\F22_ProjectInAdvancedRobotics\encode-task-impedance-from-demonstration\parameter_estimation\parameztimation.py:340: RuntimeWarning: invalid value encountered in sqrt
       plot_ellipsoid_3d(np.array(x)*gain,evec*np.sqrt(lamb), ax)
-    D:\SDU\courses\F22_ProjectInAdvancedRobotics\encode-task-impedance-from-demonstration\parameter_estimation\parameztimation.py:295: ComplexWarning: Casting complex values to real discards the imaginary part
-      x[i,j], y[i,j], z[i,j] = center + np.dot(axes, [x[i,j],y[i,j],z[i,j]])
     
 
     
     
 
 
-![png](ParameterEstimation_files/ParameterEstimation_23_3.png)
+![png](ParameterEstimation_files/ParameterEstimation_24_3.png)
 
 
 visualize damping coefficient
@@ -260,13 +261,15 @@ plt.show()
 
     D:\SDU\courses\F22_ProjectInAdvancedRobotics\encode-task-impedance-from-demonstration\parameter_estimation\parameztimation.py:340: RuntimeWarning: invalid value encountered in sqrt
       plot_ellipsoid_3d(np.array(x)*gain,evec*np.sqrt(lamb), ax)
+    D:\SDU\courses\F22_ProjectInAdvancedRobotics\encode-task-impedance-from-demonstration\parameter_estimation\parameztimation.py:295: ComplexWarning: Casting complex values to real discards the imaginary part
+      x[i,j], y[i,j], z[i,j] = center + np.dot(axes, [x[i,j],y[i,j],z[i,j]])
     
 
     
     
 
 
-![png](ParameterEstimation_files/ParameterEstimation_25_3.png)
+![png](ParameterEstimation_files/ParameterEstimation_26_3.png)
 
 
 visualize inertial/mass matrix
@@ -295,8 +298,10 @@ plt.show()
     
 
 
-![png](ParameterEstimation_files/ParameterEstimation_27_2.png)
+![png](ParameterEstimation_files/ParameterEstimation_28_2.png)
 
+
+jupyter nbconvert --execute --to markdown README.ipynb
 
 
 ```python
