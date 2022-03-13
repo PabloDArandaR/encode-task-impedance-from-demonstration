@@ -1,5 +1,5 @@
 
-<img src="Pictures/para.png" width="400">
+<img src="Pictures/paramestimation_diagram.png" width="400">
 <center>simplified diagram</center>
 
 import modules
