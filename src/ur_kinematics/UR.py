@@ -1,6 +1,9 @@
+import sys
 import numpy as np
 import math
-import transformation
+
+sys.path.append("src/")
+import ur_kinematics.transformation as transformation
 
 def precomputeT(a = [0, -0.425, -0.3922, 0, 0, 0], d = [0.1625, 0, 0, 0.1333, 0.0997, 0.0996], alpha = [math.pi/2, 0, 0, math.pi/2, -math.pi/2, 0]):
     '''
@@ -40,7 +43,7 @@ def precomputeT(a = [0, -0.425, -0.3922, 0, 0, 0], d = [0.1625, 0, 0, 0.1333, 0.
     return Ta, Td, Talpha
 
 
-def TfromConfig(Ta: np.array,Td: np.array,Talpha: np.array, theta:np.array):
+def TfromConfig(theta:np.array, Ta: np.array,Td: np.array,Talpha: np.array):
     '''
     Calculate transformation matrixes given a configuration theta and precomputed transformation.
     input
@@ -56,9 +59,7 @@ def TfromConfig(Ta: np.array,Td: np.array,Talpha: np.array, theta:np.array):
     A = np.zeros((6,4,4))
     for i in range(6):
         T[i,:,:] = np.eye(4)
-        A[i,:,:] = np.eye(4)
-    print(f"Shape of T: {T.shape}")
-    print(f"Shape of A: {A.shape}")
+        A[i,:,:] = np.eye(4) 
     for i in range(0,6):
         c = math.cos(theta[i])
         s = math.sin(theta[i])
@@ -75,7 +76,7 @@ def TfromConfig(Ta: np.array,Td: np.array,Talpha: np.array, theta:np.array):
     
     return A,T
 
-def TToTransQuat(T:np.array, normalize=False):
+def TToTransQuat(T:np.array, normalize=False) -> tuple:
     '''
     Transform transformation to translation vector and quaternion.
     input
@@ -91,14 +92,37 @@ def TToTransQuat(T:np.array, normalize=False):
         quat =transformation.normQuat(quat)
     return trans, quat
 
+def transQuat(config:np.array, Ta: np.array,Td: np.array,Talpha: np.array, normalize=False) -> np.array:
+    '''
+    Configuration to translation vector and quaternion.
+    input
+        - Ta <list>: list with all the a transformations
+        - Td <list>: list with all the d transformations
+        - Talpha <list>: list with all the alpha transformations
+        - config <numpy array>: current configuration
+        - normalize <bool>: default False. True to normalize the quaternion, else not normalized.
+    output
+        - trans <numpy array 3>: translation vector obtained from the transformation
+        - quat <numpy array 3>: quaternion obtained from the transformation
+    '''
+    _,T = TfromConfig(Ta=Ta, Td=Td, Talpha=Talpha, theta=config)
+    trans = np.reshape(T[5,0:3,3], (3,1))
+    quat = transformation.rotToQuat(T[5,0:3,0:3])
+    if normalize:
+        quat =transformation.normQuat(quat)
+    quat = np.transpose(quat)
+    out = np.reshape(np.concatenate([trans,np.transpose(quat)], axis=0), ((7,)))
+    return out
+
+
 def Jacobian(T_set:np.array):
     '''
     Transform transformation to translation vector and quaternion.
     input
         - T <numpy array, 6x4x4>: set of transformations to calculate the jacobian
     output
-        - Jp <numpy array 3>: Translational jacobian
-        - Jo <numpy array 3>: Orientational jacobian
+        - Jp <numpy array 6x3x6>: Translational jacobian
+        - Jo <numpy array 6x3x6>: Orientational jacobian
     '''
     Jp = np.zeros((6,3,6))
     Jo = np.zeros((6,3,6))
