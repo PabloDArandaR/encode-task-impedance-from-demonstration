@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'interface = real_robot_interface_py.robot_interface:main'
+            'real_interface = real_robot_interface_py.robot_interface:main'
         ],
     },
 )
