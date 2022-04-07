@@ -3,12 +3,12 @@ from rtde_receive import RTDEReceiveInterface
 from rtde_io import RTDEIOInterface
 import numpy as np
 import sys
-import datetime
 
+from custom_msg_srv.srv import SensorCall
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray, Bool, String
-from custom_msgs_srvs.srv import SensorCall
+from std_msgs.msg import Float32MultiArray, Bool
+from custom_msg_srv.srv import SensorCall
 
 dataArray = Float32MultiArray
 
@@ -19,23 +19,17 @@ class robotInterface(Node):
 
         # Declare parameters
         self.declare_parameter("ip")
-        self.declare_parameter("dt")
 
         # Read parameters from command line
         self.ip = self.get_parameter("ip").get_parameter_value().string_value
         if self.ip == '':
             print(f"[ERROR] Incorrect IP input: ({self.ip})")
             sys.exit()
-        
-        self.dt = self.get_parameter("dt").get_parameter_value().double_value
-        if self.dt == 0:
-            print(f"[ERROR] Incorrect sampling time input: ({self.dt})")
-            sys.exit()
-
 
         # Subscribers
         self.controller_subscriber = self.create_subscription(dataArray, '/ur/output_controller', self.position_callback, 10)
         self.gui_subscriber = self.create_subscription(dataArray, '/gui/position', self.gui_callback, 10)
+        self.teach_subscriber = self.create_subcription(Bool, '/gui/teach', self.teach_callback, 10)
 
         # Services
         self.sensor_request = self.create_service(SensorCall, "/ur/sensor", self.sensor_callback)
@@ -54,6 +48,12 @@ class robotInterface(Node):
 
     def gui_callback(self, msg):
         self.control.moveJ(msg.data[0:6])
+    
+    def teach_callback(self,msg):
+        if msg.data == True:
+            self.control.teachMode()
+        elif msg.data == False:
+            self.endTeachMode()
 
 def main(args=None):
     rclpy.init(args=args)
