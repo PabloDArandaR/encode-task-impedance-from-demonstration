@@ -4,8 +4,7 @@ import numpy as np
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
-from std_msgs.msg import Bool
+from std_msgs.msg import Float32MultiArray, Bool, String
 
 dataArray = Float32MultiArray
 
@@ -68,59 +67,39 @@ class controllerNode(Node):
         self.checked = [False, False, False]
         self.first = [True, True]
         self.action_model = np.zeros((1,1)) # TODO: Here is where the model will be loaded
+        self.calculate = True
 
         # Declare publishers and subscribers
-        self.torque_subscriber = self.create_subscription(dataArray, '/ur/joint_torque', self.torque_callback, 10)
-        self.position_subscriber = self.create_subscription(dataArray, '/ur/joint_position', self.position_callback, 10)
-        self.velocity_subscriber = self.create_subscription(dataArray, '/ur/joint_velocity', self.velocity_callback, 10)
+        self.robot_subsriber = self.create_subscription(dataArray, '/ur/robot', self.robot_callback, 10)
         self.reset_subscriber = self.create_subscription(Bool, '/ur/reset', self.reset_callback, 10)
+        self.mode_subscriber = self.create_subscription(String, '/mode', self.mode_callback, 10)
+        self.training_subscriber = self.create_subscription(Bool, '/training', self.training_callback, 10)
 
-        self.velocity_publisher = self.create_publisher(dataArray, '/ur/joint_velocity', 10)
+        self.output_publisher = self.create_publisher(dataArray, '/ur/output_controller', 10)
     
-    def torque_callback(self, msg):
+    def robot_callback(self, msg):
         '''
-        Callback function for the torque message.
+        TODO: Callback function for the torque message.
         input:
             - msg <message data of type dataArray> : message with the torque information
         '''
-        self.tau = np.array(msg.data)
-        self.checked[2] = True
-        if self.allChecked():
-            self.calculateAction()
+        if self.calculate:
+            self.tau = np.array(msg.data)
+            self.checked[2] = True
+            if self.allChecked():
+                self.calculateAction()
     
-    def position_callback(self, msg):
-        '''
-        Callback function for the joint position message.
-        input:
-            - msg <message data of type dataArray> : message with the joint position information
-        '''
-        if self.first[0]:
-            self.first[0] = False
-            self.q_1 = np.array(msg.data)
-        else:
-            self.q_1 = np.copy(self.q)
+    def mode_callback(self, msg):
+        if msg.data == "G":
+            self.output_publisher = None
+            self.calculate = False
+        if msg.data == "T":
+            self.output_publisher = None
+            self.calculate = False
+        if msg.data == "C":
+            self.output_publisher = self.create_publisher(dataArray, '/ur/output_controller', 10)
+            self.calculate = True
 
-        self.q = np.array(msg.data)
-        self.checked[0] = True
-        if self.allChecked():
-            self.calculateAction()
-
-    def velocity_callback(self, msg):
-        '''
-        Callback function for the joint velocity message.
-        input:
-            - msg <message data of type dataArray> : message with the joint velocity information
-        '''
-        if self.first[1]:
-            self.first[1] = False
-            self.dq_1 = np.array(msg.data)
-        else:
-            self.dq_1 = np.copy(self.dq)
-
-        self.dq  = np.array(msg.data)
-        self.checked[1] = True
-        if self.allChecked():
-            self.calculateAction()
 
     def reset_callback(self, msg):
         '''
@@ -128,7 +107,11 @@ class controllerNode(Node):
         input:
             - msg <message data of type dataArray> : message with the torque information
         '''
-        self.first = [True, True]
+        self.q = np.zeros((6,1))
+        self.dq = np.zeros((6,1))
+        self.q_1 = np.zeros((6,1))
+        self.dq_1 = np.zeros((6,1))
+        self.tau = np.zeros((6,1))
     
     def calculateAction(self): # TODO: Based on the real controller 
         '''
@@ -138,16 +121,6 @@ class controllerNode(Node):
         A = self.q + self.q_1 + self.dq + self.dq_1 + self.tau
 
         return A
-    
-    def allChecked(self):
-        '''
-        Check if all the parameters from the last step has been received. Overlap case not considered.
-        '''
-        if self.checked == [True, True, True]:
-            self.checked == [False, False, False]
-            return True
-        else:
-            return False
 
 
 def main(args=None):
