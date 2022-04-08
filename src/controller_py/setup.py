@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'real_robot_interface_py'
+package_name = 'controller_py'
 
 setup(
     name=package_name,
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'real_interface = real_robot_interface_py.robot_interface:main'
+            'controller = controller_py.controller:main'
         ],
     },
 )
