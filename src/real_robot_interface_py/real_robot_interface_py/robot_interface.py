@@ -3,12 +3,12 @@ from rtde_receive import RTDEReceiveInterface
 from rtde_io import RTDEIOInterface
 import numpy as np
 import sys
+import time
 
-from custom_msg_srv.srv import SensorCall
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray, Bool
-from custom_msg_srv.srv import SensorCall
+from std_msgs.msg import Float32MultiArray, Bool, Empty
+#from custom_msg_srv.srv import SensorCall
 
 dataArray = Float32MultiArray
 
@@ -29,19 +29,17 @@ class robotInterface(Node):
         # Subscribers
         self.controller_subscriber = self.create_subscription(dataArray, '/ur/output_controller', self.position_callback, 10)
         self.gui_subscriber = self.create_subscription(dataArray, '/gui/position', self.gui_callback, 10)
-        self.teach_subscriber = self.create_subcription(Bool, '/gui/teach', self.teach_callback, 10)
+        self.teach_subscriber = self.create_subscription(Bool, '/gui/teach', self.teach_callback, 10)
 
-        # Services
-        self.sensor_request = self.create_service(SensorCall, "/ur/sensor", self.sensor_callback)
+        # Publishers
+        self.request_publisher = self.create_publisher(dataArray, "/sensor_data",10)
+    
+        # Timer
+        self.timer = self.create_timer(self.dt, self.sensor_callback)
 
         # Communication variables with UR
         self.control = RTDEControlInterface(self.ip)
         self.receive = RTDEReceiveInterface(self.ip)
-
-    def sensor_callback(self, request, response):
-        data_list = self.receive.getActualQ() + self.receive.getActualQd() + self.control.getJointTorques()
-        response.data = data_list
-        return response
 
     def position_callback(self, msg):
         self.control.moveL(msg.data[0:6])
@@ -53,7 +51,14 @@ class robotInterface(Node):
         if msg.data == True:
             self.control.teachMode()
         elif msg.data == False:
-            self.endTeachMode()
+            self.control.endTeachMode()
+        
+    def sensor_callback(self, msg):
+        msg = dataArray()
+        epoch = time.time()
+        msg.data = self.receive.getActualTCPPose() + self.receive.getActualTCPSpeed() + self.receive.getActualTCPForce() + [epoch]
+        print(f"Sending message at epoch: {epoch}")
+        self.request_publisher.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args)
