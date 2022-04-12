@@ -7,7 +7,7 @@ import dataHandling.data_utilities as du
 
 task_dir = "resources/training_data/task_1/"
 
-datasets = du.loadTaskSets(task_dir)
-datasets = list(filter(lambda x: du.filterAmount(x, 10), datasets))
-datasets = list(map(du.eliminateTimeOffset, datasets))
-dataset = du.combineData(datasets)
+list_datasets, dataset = du.combine(task_dir=task_dir, n = 5)
+
+fig_traj, axs_traj = du.plotTrajectory(list_datasets[0][:,:6])
+plt.show()
