@@ -10,13 +10,13 @@ import PySimpleGUI as sg
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray, Bool, String, Empty
+from std_msgs.msg import Float64MultiArray, Bool, String, Empty
 
 q_keys = ["-q1-", "-q2-", "-q3-", "-q4-", "-q5-", "-q6-"]
 
 q_home = [0.2, -2.2, 2.2, -1.5, -1.5, 0.0]
 
-dataArray = Float32MultiArray
+dataArray = Float64MultiArray
 
 class ControlWindow():
     def __init__(self, dt, task):
@@ -106,7 +106,7 @@ class ControlWindow():
     # WINDOW RELATED FUNCTIONS
 
     def returnHome(self):
-        msg = Float32MultiArray()
+        msg = Float64MultiArray()
         msg.data = q_home
         self.gui_publisher.publish(msg)
     
@@ -120,7 +120,7 @@ class ControlWindow():
         self.teach_publisher.publish(msg)
 
     def sendWrittenQ(self, values):
-        msg = Float32MultiArray()
+        msg = Float64MultiArray()
         msg.data = [float(values['-q1-']), float(values['-q2-']), float(values['-q3-']), float(values['-q4-']), float(values['-q5-']), float(values['-q6-'])]
         self.gui_publisher.publish(msg)
 
