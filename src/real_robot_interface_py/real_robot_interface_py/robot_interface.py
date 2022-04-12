@@ -7,10 +7,10 @@ import time
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray, Bool, Empty
+from std_msgs.msg import Float64MultiArray, Bool, Empty
 #from custom_msg_srv.srv import SensorCall
 
-dataArray = Float32MultiArray
+dataArray = Float64MultiArray
 
 class robotInterface(Node):
     ''' class robotInterface: Communicate with the real robot sending the commands and reading the different sensor values.'''
@@ -19,12 +19,19 @@ class robotInterface(Node):
 
         # Declare parameters
         self.declare_parameter("ip")
+        self.declare_parameter("dt")
 
         # Read parameters from command line
         self.ip = self.get_parameter("ip").get_parameter_value().string_value
         if self.ip == '':
             print(f"[ERROR] Incorrect IP input: ({self.ip})")
             sys.exit()
+
+        self.dt = self.get_parameter("dt").get_parameter_value().double_value
+        if self.dt == None:
+            print(f"[ERROR] Incorrect dt input: ({self.dt})")
+            sys.exit()
+
 
         # Subscribers
         self.controller_subscriber = self.create_subscription(dataArray, '/ur/output_controller', self.position_callback, 10)
@@ -53,11 +60,10 @@ class robotInterface(Node):
         elif msg.data == False:
             self.control.endTeachMode()
         
-    def sensor_callback(self, msg):
+    def sensor_callback(self):
         msg = dataArray()
         epoch = time.time()
         msg.data = self.receive.getActualTCPPose() + self.receive.getActualTCPSpeed() + self.receive.getActualTCPForce() + [epoch]
-        print(f"Sending message at epoch: {epoch}")
         self.request_publisher.publish(msg)
 
 def main(args=None):
