@@ -1,11 +1,12 @@
-import numpy as np
 import sys
 import os
+import numpy as np
+import matplotlib.pyplot as plt
 
 sys.path.append("src/")
 import ur_kinematics.UR as kin
 
-def combineData(list_of_arrays: list):
+def combineDatasets(list_of_arrays: list):
     '''
     combine the datasets found in search_path. All must be the same shape. Stores the combined dataset.
     input 
@@ -53,3 +54,34 @@ def filterAmount(input: np.array, n: int):
         return True
     else:
         return False
+
+def combine(task_dir:str, n:int):
+    '''
+    Performs all the required actions on the datasets and returns the list of filtered datasets as well as the combined dataset that has all the iterations in the same set
+    input 
+        - task_dir <str>: the directory where all the iterations can be found.
+        - n <int>: minimum number of elements that must exist in the iteration in order to take it into account
+    output
+        - list_datasets <list of np.array>: list of arrays of each of the training iterations.
+        - dataset <np.array>: combined dataset
+    '''
+    list_datasets = loadTaskSets(task_dir)
+    list_datasets = list(filter(lambda x: filterAmount(x, n), list_datasets))
+    list_datasets = list(map(eliminateTimeOffset, list_datasets))
+    dataset = combineDatasets(list_datasets)
+
+    return list_datasets, dataset
+
+def plotTrajectory(input: np.array):
+    '''
+    Plots the trajectory given by a dataset.
+    input 
+        - input <np.array>: input array with the trajectory.
+    output
+        - fig, ax <fix and x, matplotlib.pyplot> data of the plot
+    '''
+    fig, axs = plt.subplots(nrows=6, ncols=1)
+    for i in range(6):
+        axs[i] = plt.plot(input[:,i])
+
+    return fig, axs
