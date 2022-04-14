@@ -20,11 +20,11 @@ def combineDatasets(list_of_arrays: list):
 
 def eliminateTimeOffset(input: np.array):
     '''
-    combine the datasets found in search_path. All must be the same shape. Stores the combined dataset.
+    Eliminates the offset of time for the entire ordered dataset of samples from the same training iteration.
     input 
-        - input <np.array mx16>: input array to eliminate the time offset
+        - input <np.array mx19>: input array to eliminate the time offset
     output
-        - output <np.array mx16>: array of combined input datasets
+        - output <np.array mx19>: array of combined input datasets
     '''
     output = np.copy(input)
     output[:,-1] -= output[0,-1]
@@ -32,7 +32,7 @@ def eliminateTimeOffset(input: np.array):
 
 def loadTaskSets(dir: str):
     '''
-    Take the entire dataset and transform the joint position, speed, and torque with DK.
+    Load all the datasets found in the directory used as input.
     input 
         - dir <str>: directory where datasets are stored.
     output
@@ -43,7 +43,7 @@ def loadTaskSets(dir: str):
 
 def filterAmount(input: np.array, n: int):
     '''
-    Take the entire dataset and transform the joint position, speed, and torque with DK.
+    If a datasets doesn't have more than a given amount of rows, returns False.
     input 
         - input <np.array>: array to check whether to eliminate or not.
         - n <int>: minimum number of elements
@@ -54,6 +54,20 @@ def filterAmount(input: np.array, n: int):
         return True
     else:
         return False
+
+def plotTrajectory(input: np.array):
+    '''
+    Plots the trajectory given by a dataset.
+    input 
+        - input <np.array>: input array with the trajectory.
+    output
+        - fig, ax <fix and x, matplotlib.pyplot> data of the plot
+    '''
+    fig, axs = plt.subplots(nrows=6, ncols=1)
+    for i in range(6):
+        axs[i] = plt.plot(input[:,i])
+
+    return fig, axs
 
 def combine(task_dir:str, n:int):
     '''
@@ -71,17 +85,3 @@ def combine(task_dir:str, n:int):
     dataset = combineDatasets(list_datasets)
 
     return list_datasets, dataset
-
-def plotTrajectory(input: np.array):
-    '''
-    Plots the trajectory given by a dataset.
-    input 
-        - input <np.array>: input array with the trajectory.
-    output
-        - fig, ax <fix and x, matplotlib.pyplot> data of the plot
-    '''
-    fig, axs = plt.subplots(nrows=6, ncols=1)
-    for i in range(6):
-        axs[i] = plt.plot(input[:,i])
-
-    return fig, axs
