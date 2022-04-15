@@ -55,17 +55,30 @@ def filterAmount(input: np.array, n: int):
     else:
         return False
 
-def plotTrajectory(input: np.array):
+def plotTrajectory(input: np.array, t: str = ""):
     '''
     Plots the trajectory given by a dataset.
     input 
         - input <np.array>: input array with the trajectory.
+        - t <str>: type of plot for titles. p for position, s for speed, f for force/torque.
     output
         - fig, ax <fix and x, matplotlib.pyplot> data of the plot
     '''
-    fig, axs = plt.subplots(nrows=6, ncols=1)
+    if t == "p":
+        dict_title = {0: "x position", 1: "y position", 2: "z position", 3: "axis-angle component x", 4: "axis-angle component y", 5: "axis-angle component z"}
+    elif t == "s":
+        dict_title = {0: "x velocity", 1: "y velocity", 2: "z velocity", 3: "axis-angle velocity x", 4: "axis-angle velocity y", 5: "axis-angle velocity z"}
+    elif t == "f":
+        dict_title = {0: "x force", 1: "y force", 2: "z force", 3: "x torque", 4: "y torque", 5: "z torque"}
+    else:
+        dict_title = {0: "", 1: "", 2: "", 3: "", 4: "", 5: ""}
+
+    fig, axs = plt.subplots(3,2)
     for i in range(6):
-        axs[i] = plt.plot(input[:,i])
+        row = i % 3
+        col = int(i / 3)
+        axs[row, col].plot(input[:,i])
+        axs[row, col].set_title(dict_title[i])
 
     return fig, axs
 

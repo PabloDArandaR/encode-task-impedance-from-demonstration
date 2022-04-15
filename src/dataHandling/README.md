@@ -28,6 +28,7 @@ Functions for handling the data obtained from the task learning iterations.
   - ```plotTrajectory```: Plots the trajectory given by a dataset.
     - inputs: 
         - numpy array of nx19
+        - str
     - outputs:
         - fig and ax of matplotlib.pyplot
   - ```combine```: Performs all the required actions on the datasets and returns the list of filtered datasets as well as the combined dataset that has all the iterations in the same set.
