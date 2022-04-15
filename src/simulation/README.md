@@ -11,7 +11,7 @@ roscore
 ```
 And then start the simulation openning the scene
 ```bash
-./coppeliaSim.sh $DOWNLOAD_PATH/encode-task-impedance-from-demonstration/src/simulation/scene/ur3_simulation.ttt
+./coppeliaSim.sh $DOWNLOAD_PATH/encode-task-impedance-from-demonstration/src/simulation/scene/ur5_simulation.ttt
 ```
 
 ## ROS Topics
