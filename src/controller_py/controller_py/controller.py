@@ -1,12 +1,15 @@
 import sys
 import os
+from cv2 import QT_FONT_LIGHT
 import numpy as np
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray, Bool, String
+from std_msgs.msg import Float64MultiArray, Bool, String, Empty
 
-dataArray = Float32MultiArray
+q_home = [-0.202008, -0.18495, 0.4007, 1.929, 2.3557, 0.012822]
+
+dataArray = Float64MultiArray
 
 class controllerNode(Node):
     '''
@@ -58,48 +61,43 @@ class controllerNode(Node):
     def __init__(self):
         super().__init__("controller")
 
-        # Class fields
+        # Declare parameters
+        self.declare_parameter("dataset")
+        self.declare_parameter("dt")
+        self.dataset = self.get_parameter("dataset").get_parameter_value().string_value
+        self.dt = self.get_parameter("dt").get_parameter_value().double_value
+        if self.dt == '':
+            print(f"[ERROR] Incorrect dt input: ({self.dt})")
+            sys.exit()
+        if self.dataset == '':
+            print(f"[ERROR] Incorrect dataset input: ({self.dataset})")
+            sys.exit()
+
+        # controller fields
         self.q = np.zeros((6,1))
         self.dq = np.zeros((6,1))
         self.q_1 = np.zeros((6,1))
         self.dq_1 = np.zeros((6,1))
         self.tau = np.zeros((6,1))
-        self.checked = [False, False, False]
-        self.first = [True, True]
-        self.action_model = np.zeros((1,1)) # TODO: Here is where the model will be loaded
+        self.first = True
         self.calculate = True
+        self.trajectory_iter = iter(np.load(self.dataset))
+        self.ref = next(self.trajectory_iter)
+        self.epsilon = -1
 
-        # Declare publishers and subscribers
-        self.robot_subsriber = self.create_subscription(dataArray, '/ur/robot', self.robot_callback, 10)
+        # reset fields
+        self.controller_active = False
+        self.endPoint_achieved = False
+
+        # Declare subscribers
         self.reset_subscriber = self.create_subscription(Bool, '/ur/reset', self.reset_callback, 10)
-        self.mode_subscriber = self.create_subscription(String, '/mode', self.mode_callback, 10)
-        self.training_subscriber = self.create_subscription(Bool, '/training', self.training_callback, 10)
+        self.sensor_subscriber = self.create_subscription(dataArray, "/sensor_data", self.sensor_callback, 10)
 
+        # Declare publishers
         self.output_publisher = self.create_publisher(dataArray, '/ur/output_controller', 10)
-    
-    def robot_callback(self, msg):
-        '''
-        TODO: Callback function for the torque message.
-        input:
-            - msg <message data of type dataArray> : message with the torque information
-        '''
-        if self.calculate:
-            self.tau = np.array(msg.data)
-            self.checked[2] = True
-            if self.allChecked():
-                self.calculateAction()
-    
-    def mode_callback(self, msg):
-        if msg.data == "G":
-            self.output_publisher = None
-            self.calculate = False
-        if msg.data == "T":
-            self.output_publisher = None
-            self.calculate = False
-        if msg.data == "C":
-            self.output_publisher = self.create_publisher(dataArray, '/ur/output_controller', 10)
-            self.calculate = True
 
+        # Declare timer for update of reference position based on the input file
+        self.ref_timer = self.create_timer(self.dt, self.update_ref)
 
     def reset_callback(self, msg):
         '''
@@ -112,6 +110,8 @@ class controllerNode(Node):
         self.q_1 = np.zeros((6,1))
         self.dq_1 = np.zeros((6,1))
         self.tau = np.zeros((6,1))
+        self.controller_active = False
+        self.endPoint_achieved = False
     
     def calculateAction(self): # TODO: Based on the real controller 
         '''
@@ -121,6 +121,60 @@ class controllerNode(Node):
         A = self.q + self.q_1 + self.dq + self.dq_1 + self.tau
 
         return A
+    
+    def sensor_callback(self, msg):
+        '''
+        Update controller output based on the last sensor reading.
+        '''
+        if not self.controller_active and np.linalg.norm(np.array(msg.data[:6]) - np.array(q_home)) > self.epsilon:
+            msg = dataArray()
+            msg.data = q_home
+            self.output_publisher.publish(msg)
+            self.get_logger().info(f"Sending message: {msg}")
+        elif np.linalg.norm(np.array(msg.data[:6]) - np.array(q_home)) < self.epsilon:
+            self.controller_active = True
+        elif self.controller_active:
+            self.get_logger().info(f"Controller_active: {msg}")
+            self.updateState(msg.data)
+            new_action = self.calculateAction()
+            msg = dataArray()
+            msg.data = new_action
+            self.output_publisher.publish(msg)
+        else:
+            self.get_logger().info(f"No action for sensor_callback")
+    
+    def updateState(self, data):
+        '''
+        Update inner state based on the information received from the sensor.
+        '''
+        if self.first:
+            self.q = data[:6]
+            self.dq = data[6:12]
+            self.tau = data[12:18]
+            self.q_1 = data[:6]
+            self.dq_1 = data[6:12]
+            self.tau_1 = data[12:18]
+            self.first = False
+        else:
+            self.q_1 = self.q
+            self.dq_1 = self.dq
+            self.tau_1 = self.tau
+            self.q = data[:6]
+            self.dq = data[6:12]
+            self.tau = data[12:18]
+
+    def update_ref(self):
+        '''
+        Update reference trajectory point.
+        TODO add how the matrix are also read and the different parameters for the controller
+        '''
+        if self.controller_active and not self.endPoint_achieved:
+            new_el = next(self.trajectory_iter)
+            if new_el != None:
+                self.ref = new_el
+            else:
+                self.endPoint_achieved = True
+                self.get_logger().info("Last point set as ref point.")
 
 
 def main(args=None):
@@ -129,7 +183,7 @@ def main(args=None):
     '''
     rclpy.init(args=args)
 
-    controller = controllerNode()
+    controller = controllerNode(0.1,"")
     rclpy.spin(controller)
     controller.destroy_node()
     rclpy.shutdown()
