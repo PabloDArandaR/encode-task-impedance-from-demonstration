@@ -11,13 +11,15 @@ roscore
 ```
 And then start the simulation openning the scene
 ```bash
-./coppeliaSim.sh $DOWNLOAD_PATH/encode-task-impedance-from-demonstration/simulation/scene/ur3_simulation.ttt
+./coppeliaSim.sh $DOWNLOAD_PATH/encode-task-impedance-from-demonstration/src/simulation/scene/ur3_simulation.ttt
 ```
 
 ## ROS Topics
-The simulation publish in three topics:
-- The topic "/ur3/joint_positions" contains the position of the robot in the simulation.
-- The topic "/ur3/joint_torques" contains the torques of the robot's joints in the simulation.
-- The topic "/ur3/joint_velocities" contains the velocity of the robot's joints in the simulation.
+The simulation publish in four topics:
+- The topic "/ur5_simulation/jointConfig" contains the position of joints in the simulation.
+- The topic "//ur5_simulation/ToolPosition" contains the position of the tool in the simulation.
+- The topic "/ur5_simulation/torques" contains the torques of the robot's joints in the simulation.
+- The topic "/ur5_simulation/speeds" contains the velocity of the robot's joints in the simulation.
 
-In order to change the position, the simulation is listening to "/ur3/move_command"
+In order to change the position, the simulation is listening to "/move_command"
+In order to do another iteration, the simulation is listening to "/ur5_simulation/reset"
