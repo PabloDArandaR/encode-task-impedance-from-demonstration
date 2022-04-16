@@ -1,5 +1,6 @@
 import sys
 import os
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -55,6 +56,21 @@ def filterAmount(input: np.array, n: int):
     else:
         return False
 
+def transformToQuat(input: np.array):
+    '''
+    Transform dataset to use quaternions
+    input 
+        - input <np.array>: array to transform quaternion to where the input axis-angle rep is in positions 3:6.
+    output
+        - output <np.array>: Concatenated array
+    '''
+
+    list_quat = np.array(list(map(aarToQuat, iter(input[:,3:6]))))
+    list_quat = np.reshape(list_quat, (list_quat.shape[0], list_quat.shape[2]))
+    output = np.concatenate([np.concatenate([input[:, :3], list_quat], axis=1), input[:, 6:]], axis=1)
+
+    return output
+
 def plotTrajectory(input: np.array, t: str = ""):
     '''
     Plots the trajectory given by a dataset.
@@ -64,8 +80,10 @@ def plotTrajectory(input: np.array, t: str = ""):
     output
         - fig, ax <fix and x, matplotlib.pyplot> data of the plot
     '''
-    if t == "p":
+    if t == "p_a":
         dict_title = {0: "x position", 1: "y position", 2: "z position", 3: "axis-angle component x", 4: "axis-angle component y", 5: "axis-angle component z"}
+    if t == "p_q":
+        dict_title = {0: "x position", 1: "y position", 2: "z position", 3: "quaternion component w", 4: "quaternion component x", 5: "quaternion component y", 6: "quaternion component z"}
     elif t == "s":
         dict_title = {0: "x velocity", 1: "y velocity", 2: "z velocity", 3: "axis-angle velocity x", 4: "axis-angle velocity y", 5: "axis-angle velocity z"}
     elif t == "f":
@@ -73,14 +91,59 @@ def plotTrajectory(input: np.array, t: str = ""):
     else:
         dict_title = {0: "", 1: "", 2: "", 3: "", 4: "", 5: ""}
 
-    fig, axs = plt.subplots(3,2)
-    for i in range(6):
-        row = i % 3
-        col = int(i / 3)
-        axs[row, col].plot(input[:,i])
-        axs[row, col].set_title(dict_title[i])
+    if len(dict_title.keys()) == 6:
+        fig, axs = plt.subplots(3,2)
+        for i in range(6):
+            row = i % 3
+            col = int(i / 3)
+            axs[row, col].plot(input[:,i])
+            axs[row, col].set_title(dict_title[i])
+    elif len(dict_title.keys()) == 7:
+        fig, axs = plt.subplots(4,2)
+        for i in range(6):
+            row = i % 3
+            col = int(i / 3)
+            axs[row, col].plot(input[:,i])
+            axs[row, col].set_title(dict_title[i])
+        axs[3,1].plot(input[:,6])
+        axs[3,1].set_title(dict_title[6])
 
     return fig, axs
+
+def aarToAngleVector(input: np.array):
+    '''
+    Axis-angle representation into vector and angle.
+    input 
+        - task_dir <str>: axis-angle representation input angle
+    output
+        - vector <np.array>: vector of the direction of rotation
+        - angle <float>: angle of rotation respect to the angle
+    '''
+
+    angle = np.linalg.norm(input)
+    vector = input/angle
+
+    return vector, angle
+
+
+def aarToQuat(input: np.array):
+    '''
+    Axis-angle representation to quaternion.
+    input 
+        - task_dir <str>: axis-angle representation input angle
+    output
+        - quat <np.array>: equivalent quaternion [q_w, q_x, q_y, q_z]
+    '''
+    quat = np.zeros((1,4))
+    vector, angle = aarToAngleVector(input=input)
+
+    quat[0,0] = math.cos(angle/2)
+    quat[0,1] = vector[0] * math.sin(angle/2)
+    quat[0,2] = vector[1] * math.sin(angle/2)
+    quat[0,3] = vector[2] * math.sin(angle/2)
+
+    return quat
+
 
 def combine(task_dir:str, n:int):
     '''
@@ -94,6 +157,7 @@ def combine(task_dir:str, n:int):
     '''
     list_datasets = loadTaskSets(task_dir)
     list_datasets = list(filter(lambda x: filterAmount(x, n), list_datasets))
+    list_datasets = list(map(transformToQuat, list_datasets))
     list_datasets = list(map(eliminateTimeOffset, list_datasets))
     dataset = combineDatasets(list_datasets)
 
