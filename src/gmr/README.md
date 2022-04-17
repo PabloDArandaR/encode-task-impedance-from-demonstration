@@ -1,7 +1,9 @@
 
-# GMM test
+# GMM+GMR full use example
 References: 
 https://calinon.ch/codes.htm
+
+https://scikit-learn.org/stable/modules/generated/sklearn.mixture.BayesianGaussianMixture.html
 
 ### Pages related:
 
@@ -14,111 +16,63 @@ https://calinon.ch/codes.htm
 
 
 ```python
-import os
 import numpy as np
 import matplotlib.pyplot as plt
-import pbdlib as pbd
+from gaussian_mixture_regression import train_and_return_1D, train_and_return_PD, train_and_return_PD_connected
+from generate_fake_data import load_data
 ```
 
-## Import generated fake data
-
-
+## Import and plot generated fake data
 
 ```python
-datapath = os.path.dirname(os.path.realpath(__file__))
-print(datapath)
-data = np.load(datapath + '/test_001.npy',allow_pickle=True,encoding="latin1")[()]
-
-demos_x = data['x']  #Position data
-demos_dx = data['dx'] # Velocity data
-demos_xdx = [np.hstack([_x, _dx]) for _x ,_dx in zip(demos_x, demos_dx)] # Position-velocity
+X = load_data(plot=True, NPY=True, ret=True)
 ```
-
-## Plot fake data
-
-
-```python
-for d in demos_x:
-    plt.axes().set_prop_cycle(None)
-    plt.plot(d)
-
-plt.show()
-```
-
 
 ![png](Pictures/generated_signals.png)
 
 
-As we can observe, not all the signals are perfectly alligned. We need to
-apply DTW in order to fit GMM on this signals.
+The shape of the data must be in the following format: 
+[number of demonstrations, length of demonstation, numer of dimensions]
 
-
-## DTW Signal
-
-
-```python
-demos_x, demos_dx, demos_xdx = pbd.utils.align_trajectories(demos_x, [demos_dx, demos_xdx])
-t = np.linspace(0, 100, demos_x[0].shape[0])
-```
-
+Very important: All demonstations must have the same length! And the time should already be normalized!
+(even if the data is 1D)
 
 ```python
-# DTW signals plot
-fig, ax = plt.subplots(nrows=2)
-for d in demos_x:
-    ax[0].set_prop_cycle(None)
-    ax[0].plot(d)
-plt.show()
+dem, len = X.shape
+print(X.shape)
+X = X[:, :, np.newaxis]
 ```
 
-
-![png](Pictures/timed_wrapped_signals.png)
-
-
-## The good stuff
-Augment data with time, and initialize GMM model
+## Train 1D Gaussian mixture model
 
 ```python
-demos = [np.hstack([t[:,None], d]) for d in demos_xdx]
-data = np.vstack([d for d in demos])
-
-model = pbd.GMM(nb_states=4, nb_dim=5)
-
-model.init_hmm_kbins(demos) # initializing model
-
-# EM to train model
-model.em(data, reg=[0.1, 1., 1., 1., 1.])
-
-
-# plotting
-fig, ax = plt.subplots(nrows=4)
-fig.set_size_inches(12,7.5)
-
-# position plotting
-for i in range(4):
-    for p in demos:
-        ax[i].plot(p[:, 0], p[:, i + 1])
-    pbd.plot_gmm(model.mu, model.sigma, ax=ax[i], dim=[0, i + 1])
-
-plt.show()
+time, X_1D = train_and_return_1D(X=X, gaus_num=10, out_dim=100)
 ```
 
+When training the GMM we only need to input the data, numer of
+Gaussians and the output dimensions we expect to have. The time will be 
+generated automatically from the size of the demonstrations. 
 
-![png](Pictures/gmm_fit.png)
+The shape of the output will be a one dimension array with the size that
+was asked from the 'out_dim' parrameter.
 
-
-## Plot GMMs
-
+## Train Multiple independent Dimensions Gaussian mixture model (recommended) 
 
 ```python
-mu, sigma = model.condition(t[:, None], dim_in=slice(0, 1), dim_out=slice(1, 5))
-
-pbd.plot_gmm(mu, sigma, dim=[0, 1], color='orangered', alpha=0.3)
-
-for d in demos_x:
-    plt.plot(d[:, 0], d[:, 1])
-
-plt.show()
+time, X_PD = train_and_return_PD(X=X, gaus_num=10, out_dim=100)
 ```
 
-![png](Pictures/gmm_fit2.png)
+Everything stated for the one dimension function is still applied in this section as well. 
+
+The only difference here is that the output is not only one dimension array but a array with the shape
+[out_dim, numer of dimensions]
+
+## Train Multiple dependent Dimensions Gaussian mixture model 
+
+```python
+time, X_PD_con = train_and_return_PD_connected(X=X, gaus_num=10, out_dim=100)
+```
+
+The main difference between the independend one and this one is the way of treating the variables.
+After a couple of test the results seem to be more stable and accurate when we treat them independently. 
+
