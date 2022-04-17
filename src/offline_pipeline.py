@@ -11,7 +11,5 @@ task_dir = os.path.normpath(os.getcwd() + os.sep + os.pardir) + "/resources/trai
 
 list_datasets, dataset = du.combine(task_dir=task_dir, n=10)
 
-<<<<<<< HEAD
 fig_traj, axs_traj = du.plotTrajectory(list_datasets[0][:,:7], "p_q")
 plt.show()
->>>>>>> ac75adc50ede64901926962ba7de239b3e73851a
