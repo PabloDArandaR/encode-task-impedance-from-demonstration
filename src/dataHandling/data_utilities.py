@@ -4,9 +4,6 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
-sys.path.append("src/")
-import ur_kinematics.UR as kin
-
 def combineDatasets(list_of_arrays: list):
     '''
     combine the datasets found in search_path. All must be the same shape. Stores the combined dataset.
