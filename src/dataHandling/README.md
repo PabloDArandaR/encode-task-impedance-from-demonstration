@@ -44,13 +44,18 @@ Functions for handling the data obtained from the task learning iterations. Some
         - numpy array of 1x3
     - outputs:
         - numpy array of 1x4
+  - ```transformToQuat```: Takes a demonstration set and modifies it to put the quaternions where the axis-angle representation appears
+    - inputs: 
+        - numpy array of nx19
+    - outputs:
+        - numpy array of nx20
   - ```combine```: Performs all the required actions on the datasets and returns the list of filtered datasets as well as the combined dataset that has all the iterations in the same set.
     - inputs:
         - str
         - int
     - outputs:
-        - list of numpy arrays
-        - numpy array of nx19
+        - list of numpy arrays of nx20 (position (7 values), speed(6 values), forces (6 values), time)
+        - numpy array of nx21 (position (7 values), speed(6 values), forces (6 values), time, ID demonstration)
 
 ## Import python modules
 
