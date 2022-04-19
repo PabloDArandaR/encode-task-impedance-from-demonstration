@@ -7,7 +7,8 @@ The stored demonstrations contain the following variables in order of apperance:
   - 6 speed variables (vx, vy, vz, wx, wy, wz)
     - cartesian speed: vx, vy, vz
     - angular velocity: wx, wy, wz
-  - 6 force variables (fx, fy, fz, mx, my, mz)
-    - forces: fx, fy, fz
-    - momentums: mx, my, mz
+  - 6 generalized forces variables
+  - 6 joint positions
+  - 6 joint velocities
+  - 6 wrench forces and torques
   - time
