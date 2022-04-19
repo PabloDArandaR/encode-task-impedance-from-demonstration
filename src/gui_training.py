@@ -19,7 +19,7 @@ q_home = [0.2, -2.2, 2.2, -1.5, -1.5, 0.0]
 dataArray = Float64MultiArray
 
 class ControlWindow():
-    def __init__(self, dt, task):
+    def __init__(self, task):
         self.layoutTraining = [
             [
                 sg.Text(text="Training iteration", key="train_status"),
@@ -80,7 +80,6 @@ class ControlWindow():
         self.iter = 0
         self.lock = threading.Lock()
         self.data = []
-        self.dt = dt
         self.task = task
 
         # Check folders exist and/or create them
@@ -187,7 +186,7 @@ class ControlWindow():
 
 def main(args=None):
     rclpy.init(args=args)    
-    window = ControlWindow(dt = float(sys.argv[1]), task=sys.argv[2])
+    window = ControlWindow(task=sys.argv[1])
     window.run()
     window.window.close()
     rclpy.shutdown()
