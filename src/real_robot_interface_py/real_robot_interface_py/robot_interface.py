@@ -63,7 +63,7 @@ class robotInterface(Node):
     def sensor_callback(self):
         msg = dataArray()
         epoch = time.time()
-        msg.data = self.receive.getActualTCPPose() + self.receive.getActualTCPSpeed() + self.receive.getActualTCPForce() + [epoch]
+        msg.data = self.receive.getActualTCPPose() + self.receive.getActualTCPSpeed() + self.receive.getActualTCPForce() + self.receive.getActualQ() + self.receive.getActualQd() + self.receive.getFtRawWrench() + [epoch]
         self.request_publisher.publish(msg)
 
 def main(args=None):
