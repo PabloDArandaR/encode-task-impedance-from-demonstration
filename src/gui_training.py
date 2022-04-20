@@ -71,6 +71,7 @@ class ControlWindow():
         # publisher setup
         self.gui_publisher = self.node.create_publisher(dataArray, '/gui/position',10)
         self.teach_publisher = self.node.create_publisher(Bool, '/gui/teach',10)
+        self.reset_publisher = self.node.create_publisher(Empty, '/reset_sensor',10)
 
         # subscriber setup
         self.sensor_subscriber = self.node.create_subscription(dataArray, "/sensor_data", self.response_callback, 10)
@@ -108,6 +109,9 @@ class ControlWindow():
         msg = Float64MultiArray()
         msg.data = q_home
         self.gui_publisher.publish(msg)
+        time.sleep(0.5)
+        self.reset_publisher.publish(Empty())
+
     
     def activateTeach(self):
         msg = Bool()
