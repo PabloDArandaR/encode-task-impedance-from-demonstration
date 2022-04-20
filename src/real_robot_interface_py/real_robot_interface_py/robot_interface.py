@@ -32,11 +32,11 @@ class robotInterface(Node):
             print(f"[ERROR] Incorrect dt input: ({self.dt})")
             sys.exit()
 
-
         # Subscribers
         self.controller_subscriber = self.create_subscription(dataArray, '/ur/output_controller', self.position_callback, 10)
         self.gui_subscriber = self.create_subscription(dataArray, '/gui/position', self.gui_callback, 10)
         self.teach_subscriber = self.create_subscription(Bool, '/gui/teach', self.teach_callback, 10)
+        self.zero_sensor_subcriber = self.create_subscription(Empty, '/reset_sensor', self.reset_callback,10)
 
         # Publishers
         self.request_publisher = self.create_publisher(dataArray, "/sensor_data",10)
@@ -59,11 +59,14 @@ class robotInterface(Node):
             self.control.teachMode()
         elif msg.data == False:
             self.control.endTeachMode()
+    
+    def reset_callback(self, msg):
+        self.control.zeroFtSensor()
         
     def sensor_callback(self):
         msg = dataArray()
         epoch = time.time()
-        msg.data = self.receive.getActualTCPPose() + self.receive.getActualTCPSpeed() + self.receive.getActualTCPForce() + self.receive.getActualQ() + self.receive.getActualQd() + self.receive.getFtRawWrench() + [epoch]
+        msg.data = self.receive.getActualTCPPose() + self.receive.getActualTCPSpeed() + self.receive.getActualTCPForce() + self.receive.getActualQ() + self.receive.getActualQd() + self.receive.getFtRawWrench() + self.control.getJointTorques() + [epoch]
         self.request_publisher.publish(msg)
 
 def main(args=None):
