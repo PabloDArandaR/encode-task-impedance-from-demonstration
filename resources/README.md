@@ -11,4 +11,5 @@ The stored demonstrations contain the following variables in order of apperance:
   - 6 joint positions
   - 6 joint velocities
   - 6 wrench forces and torques
+  - 6 joint torques
   - time
