@@ -107,6 +107,51 @@ def plotTrajectory(input: np.array, t: str = ""):
 
     return fig, axs
 
+def plotPositional(forces: np.array, pos: np.array, vel: np.array, dt: float):
+    '''
+    Plots the trajectory given by a dataset.
+    input 
+        - forces <np.array nx3>: input array with the forces.
+        - pos <np.array nx3>: input array with the position.
+        - vel <np.array nx3>: input array with the velocity.
+    output
+        - fig, ax <fix and x, matplotlib.pyplot> data of the plot
+    '''
+
+    data = [forces, pos, vel]
+    acc = np.zeros((forces.shape[0],3))
+    for i in range(1,forces.shape[0]):
+        acc[i,:] = (vel[i,:] - vel[i-1,:])/dt
+    
+    data.append(acc)
+    data_title = {0: ["fx", "fy", "fz"], 1: ["x", "y", "z"], 2: ["vx", "vy", "vz"], 3: ["ax", "ay", "az"]}
+    fig, ax = plt.subplots(4, 3)
+    for i in range(4):
+        for j in range(3):
+            ax[i,j].plot(data[i][:,j])
+            ax[i,j].set_ylabel(data_title[i][j])
+
+    return fig, ax
+
+def compareArrays(arr1:np.array, arr2:np.array):
+    '''
+    Plots the trajectory given by a dataset.
+    input 
+        - forces <np.array nx3>: input array with the forces.
+        - pos <np.array nx3>: input array with the position.
+        - vel <np.array nx3>: input array with the velocity.
+    output
+        - fig, ax <fix and x, matplotlib.pyplot> data of the plot
+    '''
+
+    fig, ax = plt.subplots(2, 6)
+
+    for i in range(6):
+        ax[0,i].plot(arr1[:,i])
+        ax[1,i].plot(arr2[:,i])
+
+    return fig, ax
+
 def aarToAngleVector(input: np.array):
     '''
     Axis-angle representation into vector and angle.
@@ -141,6 +186,20 @@ def aarToQuat(input: np.array):
 
     return quat
 
+def LPFilter(input: np.array, alpha: float):
+    '''
+    Low pass filter
+    input 
+        - input <str>: input array to be filtered
+        - alpha <float>: alpha parameter of the filter
+    output
+        - output <np.array>: filtered array
+    '''
+    output = np.copy(input)
+    for i in range(1, input.shape[0]):
+        output[i,:] = alpha*input[i,:] + (1 - alpha)*output[i-1,:]
+    
+    return output
 
 def combine(task_dir:str, n:int):
     '''
