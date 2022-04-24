@@ -11,6 +11,25 @@ xnew = np.linspace(0, 4 * pi, num=100, endpoint=True)
 
 
 def generate_data(num, plot=False, saveCSV=False, saveNPY=False, ret=False):
+    """Generates plots and saves in both .npy, .csv formats multiple data arrays used later for testing GMM
+     and GMR capabilities.
+    Parameters
+    ----------
+    num : int
+        Number of random array demonstrations that are generated
+    plot : bool (default: False)
+        Decides if you want to plot the generated data
+    saveCSV : bool (default: False)
+        Decides if you want to save the data as .csv format
+    saveNPY : bool (default: False)
+        Decides if you want to save the data as .npy format
+    ret : bool (default: False)
+        Decides if you want to return the generated data as numpy parameter
+    Returns
+    -------
+    f : array, shape (num, 100)
+        If the parameter 'ret' is True that it return the generated data as npy array
+    """
     n = np.zeros((num, 50))
     yf = np.zeros((num, 50))
     y = np.zeros((num, 100))
@@ -60,6 +79,24 @@ def generate_data(num, plot=False, saveCSV=False, saveNPY=False, ret=False):
 
 
 def load_data(plot=False, CSV=False, NPY=False, ret=False):
+    """Loads plots and returns both .npy, .csv data formats that are stored for later use in testing GMM
+     and GMR capabilities.
+    Parameters
+    ----------
+    plot : bool (default: False)
+        Decides if you want to plot the loaded data
+    CSV : bool (default: False)
+        Decides if you want to load the data stored as .csv format
+    NPY : bool (default: False)
+        Decides if you want to save the data sored as .npy format
+    ret : bool (default: False)
+        Decides if you want to return the loaded data as numpy parameter
+    Returns
+    -------
+    data : array, shape (num, 100)
+        If the parameter 'ret' is True that it return the generated data as npy array where num is the
+        number of demonstrations.
+    """
     data = []
 
     if NPY:
@@ -79,4 +116,4 @@ def load_data(plot=False, CSV=False, NPY=False, ret=False):
 
 if __name__ == "__main__":
     generate_data(num=10, plot=True, saveCSV=False, saveNPY=True, ret=False)
-    load_data(plot=True, CSV=False, NPY=True, ret=False)
+    data = load_data(plot=True, CSV=False, NPY=True, ret=True)
