@@ -79,6 +79,24 @@ def train_and_return_PD(X, gaus_num=10, out_dim=100):
 
 
 def train_and_return_PD_connected(X, gaus_num=10, out_dim=100):
+    """This function is used as in easy to use interface for GMRpy and sklearn Bayesian Gaussian Mixture algorithm, and
+            it works for multidimensional data plus time. The dimensions are NOT treated separately from each other, so
+            the final number of the Gaussians is going to be only gaus_num, aand theid dimensionality is going to be
+            n_tasks_dim + 1.
+            Parameters
+            ----------
+            X : npy array, shape (n_demonstrations, n_steps, n_tasks_dim)
+                Training data for the GMM and GMR algorithm. This function allows multiple dimensional data, and it's
+                working based on the
+            gaus_num : int (default: 10)
+                The number of Gaussians that you;re going to try fit the data with
+            out_dim : int (default: 100)
+                The number of linearly separated values that work as normalized time
+            Returns
+            -------
+            (time, out) : numpy arrays, shape ((out_dim,), (out_dim,n_tasks_dim))
+                Returns two numpy arrays one with the predicted values and one with the normalized time values.
+            """
     n_demonstrations, n_steps, n_task_dims = X.shape
     x_train = np.empty((n_demonstrations, n_steps, n_task_dims + 1))
     x_train[:, :, 1:] = X

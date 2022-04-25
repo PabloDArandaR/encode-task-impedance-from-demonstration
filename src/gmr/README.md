@@ -1,9 +1,14 @@
 
 # GMM+GMR full use example
 References: 
+
 https://calinon.ch/codes.htm
 
 https://scikit-learn.org/stable/modules/generated/sklearn.mixture.BayesianGaussianMixture.html
+
+https://scikit-learn.org/stable/modules/mixture.html#bgmm
+
+
 
 ### Pages related:
 
@@ -28,7 +33,7 @@ from generate_fake_data import load_data
 X = load_data(plot=True, NPY=True, ret=True)
 ```
 
-![png](Pictures/generated_signals.png)
+![png](Pictures/training_input.png)
 
 
 The shape of the data must be in the following format: 
@@ -76,3 +81,17 @@ time, X_PD_con = train_and_return_PD_connected(X=X, gaus_num=10, out_dim=100)
 The main difference between the independend one and this one is the way of treating the variables.
 After a couple of test the results seem to be more stable and accurate when we treat them independently. 
 
+## Let's take a look inside the GMM and GMR
+
+![png](Pictures/gmm_fit_4.png)
+
+After training the data we can observe how the Gaussians distributions are placed among the original data
+
+Another good questions is let's see what happens if we try to increase the number of Gaussians distributions. :smirk: Hmmm...
+
+![png](Pictures/gmm_fit_10.png)
+
+As we can see, even tho there are too many Gaussian Distributions the final result doesnt change. 
+Here we attached a picture of the final predicted values.
+
+![png](Pictures/predicted_output.png)

@@ -1,3 +1,10 @@
+"""
+Unfortunately this script is no longer suported!
+
+After very careful examinations I decided to not include the pbd library in the final solution of the project.
+
+I opted to use sklearn and GMMpy for the final solution due to the extended support and documentation. :(
+    """
 import os
 import numpy as np
 import matplotlib.pyplot as plt
