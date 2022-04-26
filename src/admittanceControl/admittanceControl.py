@@ -83,6 +83,12 @@ class AdmittanceControl:
             error_rc = self.concatenate_vectors_conv_matrix(pos_error, orient_error)
 
         return error_rc
+    
+    def update_K(self, new_K):
+        self.k_matrix = new_K
+    
+    def update_damp(self, new_damp):
+        self.damp_matrix = new_damp
 
     def get_stored_values(self):
         return self.stored_actual_space_config, self.stored_desired_space_config
