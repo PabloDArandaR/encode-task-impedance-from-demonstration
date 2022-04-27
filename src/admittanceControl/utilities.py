@@ -3,22 +3,27 @@ import numpy as np
 
 # Limit for decimals. A number under this limit will be taken as 0
 limit_dec = math.pow(10, -15)
+ZERO_DEGREES_TRANS = np.array([
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1]
+])
+
+
+def check_transform_np_array(val):
+    if not (type(val) is np.ndarray):
+        val = np.array(val)
+    return val
 
 
 def separate_rotation_translation(matrix):
     rotation, translation = [], []
-    error = True
 
-    if len(matrix) == 4:
-        if len(matrix[0]) == 4 and len(matrix[1]) == 4 and len(matrix[2]) == 4 and len(matrix[3]) == 4:
-            error = False
-
-    if not error:
-        for i in range(3):
-            rotation.append([])
-            for p in matrix[i][0:3]:
-                rotation[i].append(p)
-            translation.append(matrix[i][3])
+    for i in range(3):
+        rotation.append([])
+        for p in matrix[i][0:3]:
+            rotation[i].append(p)
+        translation.append(matrix[i][3])
 
     return np.array(rotation), np.array(translation)
 
@@ -31,24 +36,6 @@ def ZYZ_conver(rotm, inv):
     eul3 = math.atan2(-sp * rotm.item(0, 0) + cp * rotm.item(1, 0), -sp * rotm.item(0, 1) + cp * rotm.item(1, 1))
 
     return [eul1, eul2, eul3] if not inv else [-1*eul1, -1*eul2, -1*eul3]
-
-
-def Rx(theta):
-    return np.matrix([[1, 0, 0],
-                      [0, math.cos(theta), -math.sin(theta)],
-                      [0, math.sin(theta), math.cos(theta)]])
-
-
-def Ry(theta):
-    return np.matrix([[math.cos(theta), 0, math.sin(theta)],
-                      [0, 1, 0],
-                      [-math.sin(theta), 0, math.cos(theta)]])
-
-
-def Rz(theta):
-    return np.matrix([[math.cos(theta), -math.sin(theta), 0],
-                      [math.sin(theta), math.cos(theta), 0],
-                      [0, 0, 1]])
 
 
 def get_quaternion_from_euler(angles):
@@ -123,7 +110,7 @@ def trans(axis, a_t, theta_t):
     return t_r
 
 
-def comp_trans(joint_config, DH_Parameters_a, DH_Parameters_d, DH_Parameters_alpha):
+def comp_DH_trans(joint_config, DH_Parameters_a, DH_Parameters_d, DH_Parameters_alpha):
     sing_trans = []
     comb_transf = []
 
@@ -142,24 +129,66 @@ def comp_trans(joint_config, DH_Parameters_a, DH_Parameters_d, DH_Parameters_alp
     return sing_trans, comb_transf
 
 
-def compute_critical_dumping(mo_f, ko_f, mp_f, kp_f):
-    if type(mo_f) is int or type(mo_f) is float:
-        aux_do = 2*math.sqrt(mo_f*(ko_f+1))
-        aux_dp = 2*math.sqrt(mp_f*(kp_f+1))
-    else:
-        if not(type(mo_f) is np.ndarray):
-            mo_f = np.array(mo_f)
-            ko_f = np.array(ko_f)
-            mp_f = np.array(mp_f)
-            kp_f = np.array(kp_f)
+def critical_damping_formula(m, k):
+    """Compute the critical damping.
 
-        aux_do = 2 * np.sqrt(mo_f * (ko_f + np.eye(3)))
-        aux_dp = 2 * np.sqrt(mp_f * (kp_f + np.eye(3)))
+        Parameters:
+        m (int/float/array/np.array): The mass.
+        k (int/float/array/np.array): The k parameter.
+
+        Returns:
+        np.ndarray/float: The computed damping
+
+       """
+    if type(m) is int or type(m) is float:
+        aux_d = 2*math.sqrt(m*(k+1))
+    else:
+        org_length = len(m)
+        if not(type(m) is np.ndarray):
+            m = np.array(m)
+            k = np.array(k)
+
+        aux_d = 2 * np.sqrt(m * (k + np.eye(org_length)))
+
+    return aux_d
+
+
+def compute_critical_damping(mo_f, ko_f, mp_f, kp_f):
+    """Compute the damping parameter for the 2nd order spring system.
+
+        Parameters:
+        mo_f (int/float/array/np.array): The mass for the orientation.
+        ko_f (int/float/array/np.array): The k parameter for the orientation.
+        mp_f (int/float/array/np.array): The mass for the position.
+        kp_f (int/float/array/np.array): The k parameter for the position.
+
+        Returns:
+        np.ndarray: The computed mass matrix 6x6
+        np.ndarray: The computed k matrix 6x6
+        np.ndarray: The computed damping matrix 6x6
+
+       """
+    aux_do = critical_damping_formula(mo_f, ko_f)
+    aux_dp = critical_damping_formula(mp_f, kp_f)
 
     return aux_dp, aux_do
 
 
 def compute_parameters_matrix(mo_f, ko_f, mp_f, kp_f):
+    """Compute the damping parameter for the 2nd order spring system.
+
+        Parameters:
+        mo_f (int/float/array/np.array): The mass for the orientation.
+        ko_f (int/float/array/np.array): The k parameter for the orientation.
+        mp_f (int/float/array/np.array): The mass for the position.
+        kp_f (int/float/array/np.array): The k parameter for the position.
+
+        Returns:
+        np.ndarray: The computed mass matrix 6x6
+        np.ndarray: The computed k matrix 6x6
+        np.ndarray: The computed damping matrix 6x6
+
+       """
 
     if not(type(mo_f) is int or type(mo_f) is float) and not(type(mo_f) is np.ndarray):
         mo_f = np.array(mo_f)
@@ -170,8 +199,133 @@ def compute_parameters_matrix(mo_f, ko_f, mp_f, kp_f):
     ma_aux = compute_6_by_6_diagonal_matrix_two_value(mp_f, mo_f)
     ka_aux = compute_6_by_6_diagonal_matrix_two_value(kp_f, ko_f)
 
-    dp, do = compute_critical_dumping(mo_f, ko_f, mp_f, kp_f)
+    dp, do = compute_critical_damping(mo_f, ko_f, mp_f, kp_f)
 
     da_aux = compute_6_by_6_diagonal_matrix_two_value(dp, do)
 
     return ma_aux, ka_aux, da_aux
+
+
+def rx(theta):
+    """Rx's transformation.
+
+        Parameters:
+        theta (float): angle in radians.
+
+        Returns:
+        np.ndarray: The computed matrix
+
+       """
+    return np.matrix([[1, 0, 0],
+                      [0, math.cos(theta), -math.sin(theta)],
+                      [0, math.sin(theta), math.cos(theta)]])
+
+
+def ry(theta):
+    """Ry's transformation.
+
+        Parameters:
+        theta (float): angle in radians.
+
+        Returns:
+        np.ndarray: The computed matrix
+
+       """
+    return np.matrix([[math.cos(theta), 0, math.sin(theta)],
+                      [0, 1, 0],
+                      [-math.sin(theta), 0, math.cos(theta)]])
+
+
+def rz(theta):
+    """Rz's transformation.
+
+        Parameters:
+        theta (float): angle in radians.
+
+        Returns:
+        np.ndarray: The computed matrix
+
+       """
+    return np.matrix([[math.cos(theta), -math.sin(theta), 0],
+                      [math.sin(theta), math.cos(theta), 0],
+                      [0, 0, 1]])
+
+
+def compute_ZYZ_trans(theta, theta2, theta3):
+    """Compute the ZYZ transformation matrix based on the given angles.
+
+        Parameters:
+        theta (float): X-axis TCP position.
+        theta2 (float): Y-axis TCP position.
+        theta3 (float): Z-axis TCP position.
+
+        Returns:
+        np.ndarray: The computed transformation
+
+       """
+
+    m1 = rz(theta)
+    m2 = ry(theta2)
+    m3 = rz(theta3)
+
+    mt = m1*m2*m3
+    return mt
+
+
+def compute_matrix_only_position(x, y, z):
+    """Compute the transformation matrix based only on positions.
+        The rotation will be [0, 0, 0]
+
+        Parameters:
+        x (float): X-axis TCP position.
+        y (float): Y-axis TCP position.
+        z (float): Z-axis TCP position.
+
+        Returns:
+        np.ndarray: The computed transformation matrix
+
+       """
+    mat = np.array([
+        [1.0, 0.0, 0.0, x],
+        [0.0, 1.0, 0.0, y],
+        [0.0, 0.0, 1.0, z],
+        [0.0, 0.0, 0.0, 1.0]
+    ])
+
+    return mat
+
+
+def expand_matrix(mat, req_row_size, req_colum_size):
+    """Expand the size of a given matrix with dimensions a x b to req_row_size x req_colum_size.
+
+        Parameters:
+        mat (np.ndarray): Matrix to be transformed.
+        req_row_size (int): Required row size
+        req_colum_size (int): Required colum size
+
+        Returns:
+        np.ndarray: The computed matrix
+
+        """
+    if not (type(mat) is np.ndarray):
+        mat = np.array(mat)
+
+    aux = mat
+    zero_arr1 = None
+    zero_arr2 = None
+
+    if len(mat) < req_row_size:
+        req_size1 = req_row_size - len(mat)
+        zero_arr2 = np.array([[0] * req_colum_size] * req_size1)
+
+    if len(mat[0]) < req_colum_size:
+        req_size2 = req_colum_size - len(mat[0])
+        zero_arr1 = np.array([[0] * req_size2] * len(mat))
+
+    if zero_arr1 is not None:
+        aux = np.concatenate((aux, zero_arr1), axis=1)
+
+    if zero_arr2 is not None:
+        aux = np.concatenate((aux, zero_arr2))
+
+    return aux
