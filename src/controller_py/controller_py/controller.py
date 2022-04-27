@@ -2,10 +2,18 @@ import sys
 import os
 from cv2 import QT_FONT_LIGHT
 import numpy as np
+import pickle
+import sklearn
+import gmr
 
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, Bool, String, Empty
+
+sys.path.append("src/admittanceControl")
+from admittanceControl import admittanceControl
+sys.path.append("src/MANUsEmbeddingOfTheModel")
+from manu import manuModel
 
 q_home = [-0.202008, -0.18495, 0.4007, 1.929, 2.3557, 0.012822]
 
@@ -62,28 +70,35 @@ class controllerNode(Node):
         super().__init__("controller")
 
         # Declare parameters
-        self.declare_parameter("dataset")
+        self.declare_parameter("trajectory")
         self.declare_parameter("dt")
-        self.dataset = self.get_parameter("dataset").get_parameter_value().string_value
+        self.trajectory_path = self.get_parameter("trajectory").get_parameter_value().string_value
         self.dt = self.get_parameter("dt").get_parameter_value().double_value
+        self.model_path = self.get_parameter("model").get_parameter_value().string_value
+        
         if self.dt == '':
             print(f"[ERROR] Incorrect dt input: ({self.dt})")
             sys.exit()
-        if self.dataset == '':
-            print(f"[ERROR] Incorrect dataset input: ({self.dataset})")
+        if self.trajectory_path == '':
+            print(f"[ERROR] Incorrect dataset input: ({self.trajectory_path})")
+            sys.exit()
+        if self.model_path == '':
+            print(f"[ERROR] Incorrect dataset input: ({self.model_path})")
             sys.exit()
 
-        # controller fields
-        self.q = np.zeros((6,1))
-        self.dq = np.zeros((6,1))
-        self.q_1 = np.zeros((6,1))
-        self.dq_1 = np.zeros((6,1))
-        self.tau = np.zeros((6,1))
-        self.first = True
-        self.calculate = True
-        self.trajectory_iter = iter(np.load(self.dataset))
-        self.ref = next(self.trajectory_iter)
-        self.epsilon = -1
+        # Load the model
+        try:
+            self.model = manuModel(self.model_path)
+        except:
+            print("[ERROR] ERROR when loading model.")
+            sys.exit()
+        
+        # Load trajectory
+        self.trajectory = np.load(self.trajectory_path)
+        
+        # Create controller instance
+        Kp, Dp = self.model.predict(np.zeros((3,1)))
+        self.controller = admittanceControl.AdmittanceControl(mass_matrix=np.eye(3), k_matrix = Kp, damp_matrix=Dp, desired_position = self.trajectory[0,:3], desired_position = self.trajectory[0,:3], orientation_rep="")
 
         # reset fields
         self.controller_active = False
@@ -95,9 +110,12 @@ class controllerNode(Node):
 
         # Declare publishers
         self.output_publisher = self.create_publisher(dataArray, '/ur/output_controller', 10)
+        # Go Home
+        self.goHome()
 
         # Declare timer for update of reference position based on the input file
         self.ref_timer = self.create_timer(self.dt, self.update_ref)
+
 
     def reset_callback(self, msg):
         '''
@@ -126,22 +144,10 @@ class controllerNode(Node):
         '''
         Update controller output based on the last sensor reading.
         '''
-        if not self.controller_active and np.linalg.norm(np.array(msg.data[:6]) - np.array(q_home)) > self.epsilon:
-            msg = dataArray()
-            msg.data = q_home
-            self.output_publisher.publish(msg)
-            self.get_logger().info(f"Sending message: {msg}")
-        elif np.linalg.norm(np.array(msg.data[:6]) - np.array(q_home)) < self.epsilon:
-            self.controller_active = True
-        elif self.controller_active:
-            self.get_logger().info(f"Controller_active: {msg}")
-            self.updateState(msg.data)
-            new_action = self.calculateAction()
-            msg = dataArray()
-            msg.data = new_action
-            self.output_publisher.publish(msg)
-        else:
-            self.get_logger().info(f"No action for sensor_callback")
+        f = np.array(msg.data[12:15])
+        Kp, Kv, Im = self.model.predict(f)
+        self.controller.update_K(Kp)
+        self.controller.update_damp(Kv)
     
     def updateState(self, data):
         '''
@@ -175,6 +181,11 @@ class controllerNode(Node):
             else:
                 self.endPoint_achieved = True
                 self.get_logger().info("Last point set as ref point.")
+    
+    def goHome(self):
+        msg = dataArray()
+        msg.data = q_home
+        self.output_publisher.publish(msg)
 
 
 def main(args=None):
