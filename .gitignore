@@ -3,3 +3,12 @@ build/*
 .vscode
 install
 log
+src/controller_cpp
+./.gitignore
+src/dataHandling/test*
+src/dataHandling/def*
+src/ur_kinematics/__pycache__/UR.cpython-38.pyc
+resources/transformedDK.npy
+src/real_robot_interface_py/real_robot_interface_py/__pycache__/__init__.cpython-38.pyc
+src/real_robot_interface_py/real_robot_interface_py/__pycache__/robot_interface.cpython-38.pyc
+src/dataHandling/__pycache__/data_utilities.cpython-38.pyc
