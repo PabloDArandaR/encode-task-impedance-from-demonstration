@@ -3,7 +3,6 @@ build/*
 .vscode
 install
 log
-<<<<<<< HEAD
 src/controller_cpp
 ./.gitignore
 src/dataHandling/test*
@@ -13,6 +12,4 @@ resources/transformedDK.npy
 src/real_robot_interface_py/real_robot_interface_py/__pycache__/__init__.cpython-38.pyc
 src/real_robot_interface_py/real_robot_interface_py/__pycache__/robot_interface.cpython-38.pyc
 src/dataHandling/__pycache__/data_utilities.cpython-38.pyc
-=======
 **/.idea
->>>>>>> e9bdf33a25b573e153f05e046390241585f4c808
