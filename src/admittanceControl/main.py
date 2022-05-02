@@ -120,7 +120,7 @@ def main():
             else:
                 tau = [[0]] * 3
 
-        admittance_control.step(dt, np.array(tau), True)
+        admittance_control.step(dt, np.array(tau), True, desired_pose=desired_pos)
 
         # In case of changing the desired pose/position:
         # admittance_control.step(dt, np.array(tau), True, desired_pose)

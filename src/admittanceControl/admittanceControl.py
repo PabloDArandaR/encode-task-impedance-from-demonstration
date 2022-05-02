@@ -75,19 +75,15 @@ class AdmittanceControl:
             np.ndarray: Actual orientation, in case of having only the position this space will be None
 
            """
-
         if self.only_position:
             if desired_pose is not None:
                 self.desired_position = desired_pose
-                self.desired_pos_orient = self.concatenate_vectors_conv_matrix(self.desired_position,
-                                                                               self.desired_orientation)
         else:
             if desired_pose is not None:
                 self.desired_position, self.desired_orientation = separate_rotation_translation(desired_pose)
 
                 self.desired_pos_orient = self.concatenate_vectors_conv_matrix(self.desired_position,
                                                                                self.desired_orientation)
-
         error = self.__compute_error__()
 
         k_dot_err = np.dot(self.k_matrix, error)
@@ -180,6 +176,12 @@ class AdmittanceControl:
         self.mass_matrix = mi
         self.k_matrix = kpi
         self.damp_matrix = kvi
+
+    def update_K(self, new_K):
+        self.k_matrix = new_K
+
+    def update_damp(self, new_damp):
+        self.damp_matrix = new_damp
 
     def __compute_error__(self):
         error_rc = []
