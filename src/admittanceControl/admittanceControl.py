@@ -181,12 +181,6 @@ class AdmittanceControl:
         self.k_matrix = kpi
         self.damp_matrix = kvi
 
-    def update_K(self, new_K):
-        self.k_matrix = new_K
-
-    def update_damp(self, new_damp):
-        self.damp_matrix = new_damp
-
     def __compute_error__(self):
         error_rc = []
 

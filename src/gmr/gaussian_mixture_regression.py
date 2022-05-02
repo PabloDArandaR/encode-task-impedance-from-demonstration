@@ -1,12 +1,14 @@
-import numpy as np
 import matplotlib.pyplot as plt
-import sys
+import numpy as np
 import os
-from matplotlib.patches import Ellipse
-from sklearn.mixture import BayesianGaussianMixture
-from itertools import cycle
+import pickle
+import sys
 from gmr import GMM, kmeansplusplus_initialization, covariance_initialization
 from gmr.utils import check_random_state
+from itertools import cycle
+from matplotlib.patches import Ellipse
+from sklearn.mixture import BayesianGaussianMixture
+
 from generate_fake_data import load_data
 
 
@@ -39,8 +41,9 @@ def train_and_return_1D(X, gaus_num=10, out_dim=100):
     n_components = gaus_num
     initial_means = kmeansplusplus_initialization(x_train, n_components, random_state)
     initial_covs = covariance_initialization(x_train, n_components)
-    bgmm = BayesianGaussianMixture(n_components=n_components, max_iter=1000, random_state=random_state, tol=1e-7).fit(
-        x_train)
+    # print(x_train.shape)
+    bgmm = BayesianGaussianMixture(n_components=n_components, max_iter=500, random_state=random_state, reg_covar=0.09,
+                                   tol=1e-5).fit(x_train)
     gmm = GMM(
         n_components=n_components,
         priors=bgmm.weights_,
@@ -98,16 +101,23 @@ def train_and_return_PD_connected(X, gaus_num=10, out_dim=100):
                 Returns two numpy arrays one with the predicted values and one with the normalized time values.
             """
     n_demonstrations, n_steps, n_task_dims = X.shape
+    if gaus_num > n_demonstrations or gaus_num > n_steps:
+        gaus_num = min(n_demonstrations,n_steps)
     x_train = np.empty((n_demonstrations, n_steps, n_task_dims + 1))
     x_train[:, :, 1:] = X
     t = np.linspace(0, 1, n_steps)
     x_train[:, :, 0] = t
     x_train = x_train.reshape(n_demonstrations * n_steps, n_task_dims + 1)
+    # print('here ->  '+str(x_train.shape))
+    """for i in range(24):
+        plt.plot(x_train[:, i])
+        plt.show()"""
     random_state = check_random_state(0)
     n_components = gaus_num
     initial_means = kmeansplusplus_initialization(x_train, n_components, random_state)
     initial_covs = covariance_initialization(x_train, n_components)
-    bgmm = BayesianGaussianMixture(n_components=n_components, max_iter=300, random_state=random_state).fit(x_train)
+    bgmm = BayesianGaussianMixture(n_components=n_components, max_iter=2000, random_state=random_state, reg_covar=1e-10,
+                                   tol=1e-10).fit(x_train)
     gmm = GMM(
         n_components=n_components,
         priors=bgmm.weights_,
@@ -117,6 +127,94 @@ def train_and_return_PD_connected(X, gaus_num=10, out_dim=100):
     t_test = np.linspace(0, 1, out_dim)
     output = gmm.predict(np.array([0]), t_test[:, np.newaxis])
     return t_test, output.squeeze()
+
+
+def train_GMM(X, gaus_num=10, save=True, filename='trained_GMM_model'):
+    """This function is used as in easy to use interface for GMRpy and sklearn Bayesian Gaussian Mixture algorithm, and
+            it works for multidimensional data. The dimensions are NOT treated separately from each other, so
+            the final number of the Gaussians is going to be only gaus_num, and their dimensionality is going to be
+            n_tasks_dim + 1.
+            Parameters
+            ----------
+            X : npy array, shape (n_demonstrations, n_steps, n_tasks_dim)
+                Training data for the GMM algorithm. This function allows multiple dimensional data, and it's
+                working based on the.
+            gaus_num : int (default: 10)
+                The number of Gaussians that you're going to try fit the data with.
+            save : bool (default: True)
+                Decides if you wish to save the trained model, or just simply return it.
+            filename: str (default: trained_GMM_model)
+                The name with which the model it is going to be saved.
+            Returns
+            -------
+            gmm : gmr GMM
+                Returns the model after the training is finished.
+            """
+    n_demonstrations, n_steps, n_task_dims = X.shape
+    if gaus_num > min(n_demonstrations, n_steps):
+        gaus_num = min(n_demonstrations, n_steps)
+    x_train = np.empty((n_demonstrations, n_steps, n_task_dims + 1))
+    x_train[:, :, 1:] = X
+    t = np.linspace(0, 1, n_steps)
+    x_train[:, :, 0] = t
+    x_train = x_train.reshape(n_demonstrations * n_steps, n_task_dims + 1)
+    # print('here ->  '+str(x_train.shape))
+    """for i in range(24):
+        plt.plot(x_train[:, i])
+        plt.show()"""
+    random_state = check_random_state(0)
+    n_components = gaus_num
+    initial_means = kmeansplusplus_initialization(x_train, n_components, random_state)
+    initial_covs = covariance_initialization(x_train, n_components)
+    bgmm = BayesianGaussianMixture(n_components=n_components, max_iter=2000, random_state=random_state, reg_covar=1e-10,
+                                   tol=1e-10).fit(x_train)
+    gmm = GMM(
+        n_components=n_components,
+        priors=bgmm.weights_,
+        means=bgmm.means_,
+        covariances=bgmm.covariances_,
+        random_state=random_state)
+
+    if save:
+        pickle.dump(gmm, open(filename, "wb"))
+
+    return gmm
+
+
+def load_GMM(filepath: str, filename='trained_GMM_model'):
+    """This function is used as in easy to use interface for GMRpy and it's used to load a already trained GMM for the
+     later us.
+                Parameters
+                ----------
+                filepath: str
+                    The path where the model is stored.
+                filename: str (default: trained_GMM_model)
+                    The name of the model.
+                Returns
+                -------
+                gmm : gmr GMM
+                    Returns the model after the training is finished.
+                """
+    model_path = filepath+'/'+filename
+    gmm = pickle.load(open(model_path, "rb"))
+    return gmm
+
+
+def predict_GMR(gmm, timestamp):
+    """This function is used as in easy to use interface for GMRpy, and it's used to load an already trained GMM for the
+     later us.
+                Parameters
+                ----------
+                gmm: gmr GMM
+                    The GMM model that will be used to retrieve the regresion
+                filename: str (default: trained_GMM_model)
+                    The name of the model.
+                Returns
+                -------
+                gmm : gmr GMM
+                    Returns the model after the training is finished.
+                """
+    return gmm.predict(np.array([0]), timestamp[np.newaxis, np.newaxis]).squeeze()
 
 
 if __name__ == '__main__':
