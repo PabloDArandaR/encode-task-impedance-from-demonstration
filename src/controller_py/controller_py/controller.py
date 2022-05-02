@@ -6,15 +6,21 @@ import pickle
 import sklearn
 import gmr
 
+demo = 1
+
+start_pos = 19
+end_pos = 22
+
+start_vel = 25
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, Bool, String, Empty
 
 sys.path.append("src/admittanceControl")
-from admittanceControl import admittanceControl
+import admittanceControl
 sys.path.append("src/gmr")
 from gaussian_mixture_regression import load_GMM, predict_GMR
-from manu import manuModel
 
 q_home = [-0.202008, -0.18495, 0.4007, 1.929, 2.3557, 0.012822]
 
@@ -73,8 +79,10 @@ class controllerNode(Node):
         # Declare parameters
         self.declare_parameter("trajectory")
         self.declare_parameter("dt")
+        self.declare_parameter("mode")
         self.trajectory_path = self.get_parameter("trajectory").get_parameter_value().string_value
         self.dt = self.get_parameter("dt").get_parameter_value().double_value
+        self.mode = self.get_parameter("mode").get_parameter_value().double_value
         # self.model_path = self.get_parameter("model").get_parameter_value().string_value
         
         if self.dt == '':
@@ -83,26 +91,40 @@ class controllerNode(Node):
         if self.trajectory_path == '':
             print(f"[ERROR] Incorrect dataset input: ({self.trajectory_path})")
             sys.exit()
+
+        if self.mode == '':
+            print(f"[ERROR] Incorrect dataset input: ({self.mode})")
+            sys.exit()
+        elif (self.mode != "v") and (self.mode != "p"):
+            print(f"[ERROR] Incorrect executing mode: ({self.mode}). Only velocity(v) or position(p) are accepted")
+            sys.exit()
+
+
         # if self.model_path == '':
         #     print(f"[ERROR] Incorrect dataset input: ({self.model_path})")
         #     sys.exit()
 
         # Load the model
-        try:
-            self.model = load_GMM(filepath="")
-        except:
-            print("[ERROR] ERROR when loading model.")
-            sys.exit()
+        #try:
+        #    self.model = load_GMM(filepath="")
+        #except:
+        #    print("[ERROR] ERROR when loading model.")
+        #    sys.exit()
         
         # Load trajectory
         self.trajectory = np.load(self.trajectory_path)
+        self.iter = 0
+        print(f"First value is: {self.trajectory[demo,start_pos:end_pos,0]}")
+        self.ref_pos = self.trajectory[demo,start_pos:end_pos,self.iter]
+        self.ref_vel = self.trajectory[demo,start_vel:,self.iter]
+        self.home = np.copy(self.ref)
         
         # Create controller instance
         #Kp, Dp = self.model.predict(np.zeros((3,1)))
         Mi = np.eye(3)
         Kv = np.eye(3)
         Kp = np.eye(3)
-        self.controller = admittanceControl.AdmittanceControl(mass_matrix=Mi, k_matrix = Kp, damp_matrix=Kv, desired_position = self.trajectory[0,:3], desired_position = self.trajectory[0,:3], orientation_rep="")
+        self.controller = admittanceControl.AdmittanceControl(mass_matrix=Mi, k_matrix = Kp, damp_matrix=Kv, desired_position = self.trajectory[0,:3], initial_position = self.trajectory[0,:3], only_position=True, orientation_rep="")
         self.controller.load_parameter_matrix(Mi, Kp, Kv)
 
         # reset fields
@@ -114,8 +136,10 @@ class controllerNode(Node):
         self.sensor_subscriber = self.create_subscription(dataArray, "/sensor_data", self.sensor_callback, 10)
 
         # Declare publishers
-        self.output_publisher = self.create_publisher(dataArray, '/ur/output_controller', 10)
+        self.position_publisher = self.create_publisher(dataArray, '/ur/controller_position', 10)
+        self.speed_publisher = self.create_publisher(dataArray, '/ur/controller_velocity', 10)
         # Go Home
+        self.home_achieved = False
         self.goHome()
 
         # Declare timer for update of reference position based on the input file
@@ -140,52 +164,58 @@ class controllerNode(Node):
         '''
         Update controller output based on the last sensor reading.
         '''
-        self.f = np.array(msg.data[12:15])
-        Kp, Kv, Mi = self.model.predict(self.f)
-        #self.controller.load_parameter_matrix(Mi, Kp, Kv)
-       
-        new_msg = dataArray()
-        new_pos = self.controller.step(self.dt, self.f, False, self.ref)
-        new_msg.data = new_pos + msg.data[3:6]
-        self.output_publisher.publish(new_msg)
-    
-    def updateState(self, data):
-        '''
-        Update inner state based on the information received from the sensor.
-        '''
-        if self.first:
-            self.q = data[:6]
-            self.dq = data[6:12]
-            self.tau = data[12:18]
-            self.q_1 = data[:6]
-            self.dq_1 = data[6:12]
-            self.tau_1 = data[12:18]
-            self.first = False
+        point = np.array(msg.data[0:3])
+        print(f"Check if the home is achieved or not.")
+        if self.home_achieved == False:
+            print(f"Distance to home is: {np.linalg.norm(self.home[:3]-point[:3])}")
+            if np.linalg.norm(self.home-point) < 0.3:
+                print(f"Achieved")
+                self.home_achieved = True
         else:
-            self.q_1 = self.q
-            self.dq_1 = self.dq
-            self.tau_1 = self.tau
-            self.q = data[:6]
-            self.dq = data[6:12]
-            self.tau = data[12:18]
+            self.f = np.array(msg.data[12:15])
+            #Kp, Kv, Mi = self.model.predict(self.f)
+            #self.controller.load_parameter_matrix(Mi, Kp, Kv)
+
+            #new_pos = self.controller.step(self.dt, self.f, False, self.ref.reshape((1,3)))
+            #new_pos, new_speed = self.controller.step(self.dt, self.f, False, self.ref_pos.reshape((1,3)), self.ref_vel.reshape((1,3)))
+
+            new_msg = dataArray()
+
+            if self.mode == "p":
+                new_msg.data = self.ref_pos.tolist() + list(msg.data[3:6])
+                self.position_publisher.publish(new_msg)
+
+            if self.mode == "v":
+                new_msg.data = self.ref_vel.tolist() + [0, 0, 0]
+                self.speed_publisher.publish(new_msg)
 
     def update_ref(self):
         '''
         Update reference trajectory point.
-        TODO add how the matrix are also read and the different parameters for the controller
         '''
-        if self.controller_active and not self.endPoint_achieved:
-            new_el = next(self.trajectory_iter)
-            if new_el != None:
-                self.ref = new_el
-            else:
-                self.endPoint_achieved = True
-                self.get_logger().info("Last point set as ref point.")
+        if self.home_achieved:
+            print("YES!")
+            if not self.endPoint_achieved:
+                if self.iter - 1< self.trajectory.shape[2]:
+                    self.iter += 1
+                    self.ref_pos = self.trajectory[demo,start_pos:end_pos, self.iter]
+                    self.ref_vel = self.trajectory[demo,start_vel:, self.iter]
+                else:
+                    self.endPoint_achieved = True
+                    self.get_logger().info("Last point set as ref point.")
+        
+        else:
+            print(f"Going to home: {self.home}")
+            self.goHome()
     
     def goHome(self):
         msg = dataArray()
-        msg.data = q_home
-        self.output_publisher.publish(msg)
+        msg.data = self.home.tolist() + [1.55, 2.71, 0.035]
+        msg.data[0] += 0.18
+        msg.data[1] += 0.18
+        msg.data[2] /= 2
+        self.position_publisher.publish(msg)
+        print("Trying to go home...")
 
 
 def main(args=None):
@@ -194,7 +224,7 @@ def main(args=None):
     '''
     rclpy.init(args=args)
 
-    controller = controllerNode(0.1,"")
+    controller = controllerNode()
     rclpy.spin(controller)
     controller.destroy_node()
     rclpy.shutdown()
