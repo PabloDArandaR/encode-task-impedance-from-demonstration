@@ -63,7 +63,7 @@ class ControlWindow():
             [sg.Column(self.layoutGUI, key="-COL_GUI-", visible = True)],
         ]
 
-        self.window = sg.Window('Window Title', self.layout)
+        self.window = sg.Window('Training', self.layout)
 
         # ROS setup
         self.node = rclpy.create_node("window_robot_scheduling")
@@ -174,7 +174,7 @@ class ControlWindow():
                     print(f"STARTING TRAINING {self.iter}")
                     self.commuteLog()
                     self.window["-training-"].update("STOP")
-                    self.returnHome()
+                    #self.returnHome()
                     self.activateTeach()
 
     def dataLoop(self):
