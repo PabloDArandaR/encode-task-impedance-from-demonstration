@@ -12,7 +12,8 @@ from std_msgs.msg import Float64MultiArray, Bool, String, Empty
 
 sys.path.append("src/admittanceControl")
 from admittanceControl import admittanceControl
-sys.path.append("src/MANUsEmbeddingOfTheModel")
+sys.path.append("src/gmr")
+from gaussian_mixture_regression import load_GMM, predict_GMR
 from manu import manuModel
 
 q_home = [-0.202008, -0.18495, 0.4007, 1.929, 2.3557, 0.012822]
@@ -74,7 +75,7 @@ class controllerNode(Node):
         self.declare_parameter("dt")
         self.trajectory_path = self.get_parameter("trajectory").get_parameter_value().string_value
         self.dt = self.get_parameter("dt").get_parameter_value().double_value
-        self.model_path = self.get_parameter("model").get_parameter_value().string_value
+        # self.model_path = self.get_parameter("model").get_parameter_value().string_value
         
         if self.dt == '':
             print(f"[ERROR] Incorrect dt input: ({self.dt})")
@@ -82,13 +83,13 @@ class controllerNode(Node):
         if self.trajectory_path == '':
             print(f"[ERROR] Incorrect dataset input: ({self.trajectory_path})")
             sys.exit()
-        if self.model_path == '':
-            print(f"[ERROR] Incorrect dataset input: ({self.model_path})")
-            sys.exit()
+        # if self.model_path == '':
+        #     print(f"[ERROR] Incorrect dataset input: ({self.model_path})")
+        #     sys.exit()
 
         # Load the model
         try:
-            self.model = manuModel(self.model_path)
+            self.model = load_GMM(filepath="")
         except:
             print("[ERROR] ERROR when loading model.")
             sys.exit()
@@ -97,8 +98,12 @@ class controllerNode(Node):
         self.trajectory = np.load(self.trajectory_path)
         
         # Create controller instance
-        Kp, Dp = self.model.predict(np.zeros((3,1)))
-        self.controller = admittanceControl.AdmittanceControl(mass_matrix=np.eye(3), k_matrix = Kp, damp_matrix=Dp, desired_position = self.trajectory[0,:3], desired_position = self.trajectory[0,:3], orientation_rep="")
+        #Kp, Dp = self.model.predict(np.zeros((3,1)))
+        Mi = np.eye(3)
+        Kv = np.eye(3)
+        Kp = np.eye(3)
+        self.controller = admittanceControl.AdmittanceControl(mass_matrix=Mi, k_matrix = Kp, damp_matrix=Kv, desired_position = self.trajectory[0,:3], desired_position = self.trajectory[0,:3], orientation_rep="")
+        self.controller.load_parameter_matrix(Mi, Kp, Kv)
 
         # reset fields
         self.controller_active = False
@@ -131,23 +136,18 @@ class controllerNode(Node):
         self.controller_active = False
         self.endPoint_achieved = False
     
-    def calculateAction(self): # TODO: Based on the real controller 
-        '''
-        Calculate the action based on the parameters that have been received in the last messages.
-        '''
-        M, D, K = self.action_model
-        A = self.q + self.q_1 + self.dq + self.dq_1 + self.tau
-
-        return A
-    
     def sensor_callback(self, msg):
         '''
         Update controller output based on the last sensor reading.
         '''
-        f = np.array(msg.data[12:15])
-        Kp, Kv, Im = self.model.predict(f)
-        self.controller.update_K(Kp)
-        self.controller.update_damp(Kv)
+        self.f = np.array(msg.data[12:15])
+        Kp, Kv, Mi = self.model.predict(self.f)
+        #self.controller.load_parameter_matrix(Mi, Kp, Kv)
+       
+        new_msg = dataArray()
+        new_pos = self.controller.step(self.dt, self.f, False, self.ref)
+        new_msg.data = new_pos + msg.data[3:6]
+        self.output_publisher.publish(new_msg)
     
     def updateState(self, data):
         '''
