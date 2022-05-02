@@ -201,6 +201,33 @@ def LPFilter(input: np.array, alpha: float):
     
     return output
 
+def quatDotProduct(arr1: np.array, arr2: np.array):
+    '''
+    Quaternion dot product
+    input 
+        - arr1 <np.array>: quaternion1
+        - arr2 <np.array>: quaternion2
+    output
+        - output <float>: dot product
+    '''
+    output = arr1[0]*arr2[0] + arr1[1]*arr2[1] + arr1[2]*arr2[2] + arr1[3]*arr2[3]
+    return output
+
+def sameSignQuat(arr1: np.array, arr2: np.array):
+    '''
+    Check if 2 quaternions are in the same side of the sphere
+    input 
+        - arr1 <np.array>: quaternion1
+        - arr2 <np.array>: quaternion2
+    output
+        - output <float>: True if both quaternions are in the same side of the sphere
+    '''
+    if quatDotProduct(arr1, arr2) > 0:
+        return True
+    else:
+        return False
+
+
 def combine(task_dir:str, n:int):
     '''
     Performs all the required actions on the datasets and returns the list of filtered datasets as well as the combined dataset that has all the iterations in the same set
