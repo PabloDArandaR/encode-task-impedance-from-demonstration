@@ -66,13 +66,14 @@ class AdmittanceControl:
 
             Parameters:
             dt (float): The difference of time between the previous step and this one.
-            ex_force (np.ndarray): the external force
+            ex_force (np.ndarray): the external force. Np array of (3,1) size. in case of
             store (bool): indicates whether this step should be stored or not.
-            desired_pose (np.ndarray): The new desired pose/position.
+            desired_pose (np.ndarray): The new desired pose/position . Np array of (3,1) size.
 
             Returns:
-            np.ndarray: Actual position.
+            np.ndarray: Actual position. Np matrix of (3,1) size.
             np.ndarray: Actual orientation, in case of having only the position this space will be None
+            np.ndarray: Actual speed, in case of having only the position this matrix will be a Np matrix of (3,1) size.
 
            """
         if self.only_position:
@@ -129,7 +130,7 @@ class AdmittanceControl:
                 self.stored_actual_position.append(self.actual_position)
                 self.stored_desired_position.append(self.desired_position)
 
-        return [self.actual_position, None if self.only_position else self.actual_orientation]
+        return [self.actual_position, None if self.only_position else self.actual_orientation, self.actual_speed]
 
     def get_stored_values(self):
         """ Get the stored values from the executed steps.
