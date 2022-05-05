@@ -33,8 +33,8 @@ class robotInterface(Node):
             sys.exit()
 
         # Subscribers
-        self.controller_subscriber = self.create_subscription(dataArray, '/ur/controller_position', self.position_callback, 10)
-        self.controller_subscriber = self.create_subscription(dataArray, '/ur/controller_velocity', self.velocity_callback, 10)
+        self.position_subscriber = self.create_subscription(dataArray, '/ur/controller_position', self.position_callback, 10)
+        self.velocity_subscriber = self.create_subscription(dataArray, '/ur/controller_velocity', self.velocity_callback, 10)
         self.gui_subscriber = self.create_subscription(dataArray, '/gui/position', self.gui_callback, 10)
         self.teach_subscriber = self.create_subscription(Bool, '/gui/teach', self.teach_callback, 10)
         self.zero_sensor_subcriber = self.create_subscription(Empty, '/reset_sensor', self.reset_callback,10)
@@ -49,14 +49,19 @@ class robotInterface(Node):
         self.control = RTDEControlInterface(self.ip)
         self.receive = RTDEReceiveInterface(self.ip)
 
+        self.control.zeroFtSensor()
+
         print("[INFO] Finished setup")
 
     def position_callback(self, msg):
-        print(f"Message received: {msg.data}")
-        self.control.moveL(msg.data[0:6])
+        print(f"[INFO] Position received: {msg.data}")
+        if len(list(msg.data)) == 6:
+            self.control.moveL(msg.data[0:6], msg.data[7])
+        else:
+            self.control.moveL(msg.data[0:6], msg.data[6], msg.data[7])
 
     def velocity_callback(self, msg):
-        print(f"Message received: {msg.data}")
+        print(f"[INFO] Velocity received: {msg.data}")
         self.control.speedL(msg.data[0:6])
 
     def gui_callback(self, msg):
