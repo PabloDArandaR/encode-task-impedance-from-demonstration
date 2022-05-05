@@ -1,30 +1,54 @@
 import sys
 import os
-from cv2 import QT_FONT_LIGHT
 import numpy as np
-import pickle
-import sklearn
-import gmr
+import time
 
-demo = 1
-
-start_pos = 19
-end_pos = 22
-
-start_vel = 25
+sys.path.append("src")
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray, Bool, String, Empty
+from std_msgs.msg import Float64MultiArray, Bool, String, Empty, Float64
 
 sys.path.append("src/admittanceControl")
 import admittanceControl
 sys.path.append("src/gmr")
 from gaussian_mixture_regression import load_GMM, predict_GMR
 
+demo = 0
+
+start_pos = 19
+end_pos = 22
+start_Kp = 1
+end_Kp = 7
+start_Kv = 7
+end_Kv = 13
+start_Im = 13
+end_Im = 19
+
+start_vel = 25
+
 q_home = [-0.202008, -0.18495, 0.4007, 1.929, 2.3557, 0.012822]
 
 dataArray = Float64MultiArray
+
+def read3x3Matrix(input: np.array):
+    output = np.zeros((3,3))
+    output[0,0] =input[0]
+    output[1,1] =input[3]
+    output[2,2] =input[5]
+
+    output[0,1] =input[1]
+    output[1,0] =input[1]
+
+    output[0,2] =input[2]
+    output[2,0] =input[2]
+
+
+    output[1,2] =input[4]
+    output[2,1] =input[4]
+    
+
+    return output
 
 class controllerNode(Node):
     '''
@@ -32,29 +56,8 @@ class controllerNode(Node):
     simulation and sends the required actions/speed based on the parameters
     obtained from the trained model.
 
-    ...
-
     Attributes
     ----------
-    q : np.array
-        numpy array with the joint positions of the last step
-    q_1 : np.array
-        numpy array with the joint positions of the previous step
-    dq : np.array
-        numpy array with the joint velocities of the last step
-    dq_1 : np.array
-        numpy array with the joint velocities of the previous step
-    tau : np.array
-        numpy array with the torque of the last step
-    checked : np.array
-        list of booleans that indicate which of the variables have been checked
-            -0: joint position
-            -1: joint velocity
-            -2: torque
-    first : np.array
-        list of booleans that indicate if is the first step for each of the variables
-            -0: joint position
-            -1: joint velocity
     action_model : TODO
         trained model that is used to estimate the parameters #TODO might be changed to a sequence type that stores the references poses, matrixes, ...
 
@@ -80,9 +83,11 @@ class controllerNode(Node):
         self.declare_parameter("trajectory")
         self.declare_parameter("dt")
         self.declare_parameter("mode")
+        self.declare_parameter("model")
         self.trajectory_path = self.get_parameter("trajectory").get_parameter_value().string_value
         self.dt = self.get_parameter("dt").get_parameter_value().double_value
-        self.mode = self.get_parameter("mode").get_parameter_value().double_value
+        self.mode = self.get_parameter("mode").get_parameter_value().string_value
+        self.model = self.get_parameter("model").get_parameter_value().string_value
         # self.model_path = self.get_parameter("model").get_parameter_value().string_value
         
         if self.dt == '':
@@ -99,33 +104,67 @@ class controllerNode(Node):
             print(f"[ERROR] Incorrect executing mode: ({self.mode}). Only velocity(v) or position(p) are accepted")
             sys.exit()
 
-
-        # if self.model_path == '':
-        #     print(f"[ERROR] Incorrect dataset input: ({self.model_path})")
-        #     sys.exit()
-
-        # Load the model
-        #try:
-        #    self.model = load_GMM(filepath="")
-        #except:
-        #    print("[ERROR] ERROR when loading model.")
-        #    sys.exit()
+        if self.model == '':
+            print(f"[WARNING] No model being used.")
+            sys.exit()
+        else:
+            self.basename, self.modelpath = os.path.split(self.model)
+            print(f"MODEL_PATH: {self.modelpath}")
+            print(f"BASE_NAME: {self.basename}")
+            self.force_predict_model = load_GMM(self.basename, self.modelpath)
         
         # Load trajectory
         self.trajectory = np.load(self.trajectory_path)
         self.iter = 0
+        self.fz_1 = 0
+        self.fz = 0
+        self.counter = 0
+
         print(f"First value is: {self.trajectory[demo,start_pos:end_pos,0]}")
         self.ref_pos = self.trajectory[demo,start_pos:end_pos,self.iter]
         self.ref_vel = self.trajectory[demo,start_vel:,self.iter]
-        self.home = np.copy(self.ref)
+
+        # FORCE MODEL BASED PREDICTION
+        if True:
+            self.out = predict_GMR( gmm = self.force_predict_model, timestamp = np.float64(0))
+            self.Kp = read3x3Matrix(self.out[:6])
+            self.Kv = read3x3Matrix(self.out[6:12])
+            self.Mi = read3x3Matrix(self.out[12:18])
+            self.Kp[0,0] *= 10
+            self.Kp[1,1] *= 10
+
+            self.Kv[0,0] *= 10
+            self.Kv[1,1] *= 10
+
+            self.Mi[0,0] *= 10
+            self.Mi[1,1] *= 10
+
+        # TIME MODEL BASED PREDICTION
+        if False:
+            out = predict_GMR( gmm = self.force_predict_model, timestamp = np.array([0]))
+            self.Kp = read3x3Matrix(out[:6])
+            self.Kv = read3x3Matrix(out[6:12])
+            self.Mi = read3x3Matrix(out[12:18])
+            self.ref_pos = out[18:].reshape((3,1))
+        # WHAT WE USE WITH NO MODEL
+        if False:
+            self.Kp = read3x3Matrix(self.trajectory[demo,start_Kp:end_Kp,self.iter])
+            self.Mi = read3x3Matrix(self.trajectory[demo,start_Im:end_Im,self.iter])
+            self.Kv = read3x3Matrix(self.trajectory[demo,start_Kv:end_Kv,self.iter])
+            self.Kp[0,0] *= 10
+            self.Kp[1,1] *= 10
+            self.Kv[0,0] *= 10
+            self.Kv[1,1] *= 10
+            self.Mi[0,0] *= 10
+            self.Mi[1,1] *= 10
+        self.t_1 = time.time()
+        self.t = time.time()
+
+        self.home_pos = np.copy(self.ref_pos).tolist()
+        self.home_angular_vel = [0.0,0.0,0.0]
         
         # Create controller instance
-        #Kp, Dp = self.model.predict(np.zeros((3,1)))
-        Mi = np.eye(3)
-        Kv = np.eye(3)
-        Kp = np.eye(3)
-        self.controller = admittanceControl.AdmittanceControl(mass_matrix=Mi, k_matrix = Kp, damp_matrix=Kv, desired_position = self.trajectory[0,:3], initial_position = self.trajectory[0,:3], only_position=True, orientation_rep="")
-        self.controller.load_parameter_matrix(Mi, Kp, Kv)
+        self.controller = admittanceControl.AdmittanceControl(mass_matrix=self.Mi, k_matrix = self.Kp, damp_matrix=self.Kv, desired_position = self.ref_pos, initial_position = self.ref_pos, only_position=True, orientation_rep="")
 
         # reset fields
         self.controller_active = False
@@ -138,12 +177,18 @@ class controllerNode(Node):
         # Declare publishers
         self.position_publisher = self.create_publisher(dataArray, '/ur/controller_position', 10)
         self.speed_publisher = self.create_publisher(dataArray, '/ur/controller_velocity', 10)
+        self.data_publisher = self.create_publisher(dataArray, '/data', 10)
+        self.xref_publisher = self.create_publisher(Float64, '/xref', 10)
+        self.yref_publisher = self.create_publisher(Float64, '/yref', 10)
+        self.zref_publisher = self.create_publisher(Float64, '/zref', 10)
+
         # Go Home
         self.home_achieved = False
-        self.goHome()
+        self.first_received = False
 
         # Declare timer for update of reference position based on the input file
         self.ref_timer = self.create_timer(self.dt, self.update_ref)
+        self.matrix_timer = self.create_timer(1.0, self.print_matrix)
 
 
     def reset_callback(self, msg):
@@ -160,62 +205,125 @@ class controllerNode(Node):
         self.controller_active = False
         self.endPoint_achieved = False
     
+    def print_matrix(self):
+        print("#############################################################")
+        print(f"Matrix_pre Kv: {self.Kv}")
+        print(f"Matrix_pre Kp: {self.Kp}")
+        print(f"Matrix_pre Mi: {self.Mi}")
+        print(f"Force fz: {self.fz}")
+        print(f"Converted force: {np.float64(self.fz)}")
+        print(f"out: {self.out[5]}")
+
+
     def sensor_callback(self, msg):
         '''
         Update controller output based on the last sensor reading.
         '''
+
+        # Setup home if it hasn't been setup yet
+        if not self.first_received:
+            self.home_orientation = list(msg.data[3:6])
+            self.home = self.home_pos + self.home_orientation
+            self.first_received = True
+        
         point = np.array(msg.data[0:3])
-        print(f"Check if the home is achieved or not.")
         if self.home_achieved == False:
-            print(f"Distance to home is: {np.linalg.norm(self.home[:3]-point[:3])}")
-            if np.linalg.norm(self.home-point) < 0.3:
-                print(f"Achieved")
+            self.goHome()
+            if np.linalg.norm(self.home_pos-point) < 0.05:
+                # self.get_logger().info(f"HOME Achieved")
                 self.home_achieved = True
         else:
-            self.f = np.array(msg.data[12:15])
-            #Kp, Kv, Mi = self.model.predict(self.f)
-            #self.controller.load_parameter_matrix(Mi, Kp, Kv)
+            self.f = 0.1*np.array(msg.data[12:15])
+            self.new_position = np.array(msg.data[0:3])
+            self.new_velocity = np.array(msg.data[6:9])
+            self.t_1 = self.t
+            self.t = time.time()
+            
+            # FORCE MODEL BASED PREDICTION
+            if True:
+                alpha = 0.1
+                self.fz_1 = self.fz
+                self.fz = self.fz_1*(1-alpha) + self.f[2]*alpha
+                self.out = predict_GMR( gmm = self.force_predict_model, timestamp = np.float64(self.fz))
+                self.Kp = read3x3Matrix(self.out[:6])
+                self.Kv = read3x3Matrix(self.out[6:12])
+                self.Mi = read3x3Matrix(self.out[12:18])
+                
+                self.Kp[0,0] *= 10
+                self.Kp[1,1] *= 10
 
-            #new_pos = self.controller.step(self.dt, self.f, False, self.ref.reshape((1,3)))
-            #new_pos, new_speed = self.controller.step(self.dt, self.f, False, self.ref_pos.reshape((1,3)), self.ref_vel.reshape((1,3)))
+                self.Kv[0,0] *= 10
+                self.Kv[1,1] *= 10
+                #self.Kv[2,2] *= 100
 
+                self.Mi[0,0] *= 10
+                self.Mi[1,1] *= 10
+                self.controller.load_parameter_matrix(self.Mi, self.Kp, self.Kv)
+            
+            new_pos, new_orientation, new_vel = self.controller.step(self.t-self.t_1, self.f, self.new_position, self.new_velocity, False, self.ref_pos)
+
+            # SEND THE DATA
             new_msg = dataArray()
 
             if self.mode == "p":
-                new_msg.data = self.ref_pos.tolist() + list(msg.data[3:6])
+                new_msg.data = new_pos.tolist() + self.home_orientation
                 self.position_publisher.publish(new_msg)
-
-            if self.mode == "v":
-                new_msg.data = self.ref_vel.tolist() + [0, 0, 0]
+            elif self.mode == "v":
+                new_msg.data = new_vel.tolist() + self.home_angular_vel
                 self.speed_publisher.publish(new_msg)
+            
+            
+            new_msg = dataArray()
+            new_msg.data = list(msg.data[:3]) + self.ref_pos.reshape((1,3)).tolist()[0] + list(msg.data[6:9]) + list(msg.data[12:15]) + self.Kp.reshape((1,9)).tolist()[0] + self.Kv.reshape((1,9)).tolist()[0] + self.Mi.reshape((1,9)).tolist()[0] + [msg.data[-1]]
+            self.data_publisher.publish(new_msg)
+            
+            msg = Float64()
+            msg.data = self.ref_pos[0]
+            self.xref_publisher.publish(msg)
+            msg.data = self.ref_pos[1]
+            self.yref_publisher.publish(msg)
+            msg.data = self.ref_pos[2]
+            self.zref_publisher.publish(msg)
 
     def update_ref(self):
         '''
         Update reference trajectory point.
         '''
         if self.home_achieved:
-            print("YES!")
             if not self.endPoint_achieved:
-                if self.iter - 1< self.trajectory.shape[2]:
+                if self.iter < self.trajectory.shape[2] - 1:
                     self.iter += 1
                     self.ref_pos = self.trajectory[demo,start_pos:end_pos, self.iter]
                     self.ref_vel = self.trajectory[demo,start_vel:, self.iter]
+                    if False:
+                        self.Kp = read3x3Matrix(self.trajectory[demo,start_Kp:end_Kp,self.iter])
+                        self.Mi = read3x3Matrix(self.trajectory[demo,start_Im:end_Im,self.iter])
+                        self.Kv = read3x3Matrix(self.trajectory[demo,start_Kv:end_Kv,self.iter])
+                        self.Kp[0,0] *= 10
+                        self.Kp[1,1] *= 10
+                        self.Kv[0,0] *= 10
+                        self.Kv[1,1] *= 10
+                        self.Mi[0,0] *= 10
+                        self.Mi[1,1] *= 10
+                        self.controller.load_parameter_matrix(self.Mi, self.Kp, self.Kv)
+                        print(f"Matrix Kv: {self.Kv[2,2]}")
+                        print(f"Matrix Kp: {self.Kp[2,2]}")
+                        print(f"Matrix Mi: {self.Mi[2,2]}")
+                    
                 else:
+                    self.ref_vel = np.array([0.0,0.0,0.0,0.0,0.0,0.0])
                     self.endPoint_achieved = True
                     self.get_logger().info("Last point set as ref point.")
-        
-        else:
-            print(f"Going to home: {self.home}")
+
+        elif self.first_received:
             self.goHome()
     
     def goHome(self):
         msg = dataArray()
-        msg.data = self.home.tolist() + [1.55, 2.71, 0.035]
-        msg.data[0] += 0.18
-        msg.data[1] += 0.18
-        msg.data[2] /= 2
+        #print(f"[INFO] Home position: {self.home_pos + self.home_orientation}")
+        msg.data = self.home_pos + self.home_orientation + [0.05, 0.05]
         self.position_publisher.publish(msg)
-        print("Trying to go home...")
+        #print("Trying to go home...")
 
 
 def main(args=None):
