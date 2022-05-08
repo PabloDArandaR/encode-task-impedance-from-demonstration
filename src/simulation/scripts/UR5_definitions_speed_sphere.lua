@@ -8,8 +8,6 @@ tf = 2000
 UR5_base = '.'
 UR5_tip = './UR5_tip'
 UR5_target = './UR5_target'
-SCALE_POS = 2
-JOINT_CONTROL = true
 
 function dot_product(q1, q2)
     local num = q1[1]*q2[1] + q1[2]*q2[2] + q1[3]*q2[3] + q1[4]*q2[4]
@@ -83,31 +81,12 @@ end
 function store_initial_information()
     getJointPositions()
     stored_joints = current_joints
-    
+    print_array(stored_joints)
     stored_sphere = sim.getObjectPose(targetSphere, -1)
     sphere_position = stored_sphere
     
     posT = subSetArray(stored_sphere, 1, 3)
     oriT = subSetArray(stored_sphere, 4, 7)
-end
-
-function jointConfig_cb(mes)
-    if (actual_time > max_delay) and not restarting then
-        setJointPositions(mes.data)                    
-    end
-end
-
-function jointConfigVel_cb(mes)
-    if (actual_time > max_delay) and not restarting then
-        getJointPositions()
-        local s_pos = current_joints
-
-        for i=1, #s_pos, 1 do
-            s_pos[i] = s_pos[i] + (mes.data[i] * maxVelJoint)/maxRec
-        end
-        
-        setJointPositions(s_pos)                    
-    end
 end
 
 function quaternion_interpolation(qt, gm, t_i)
@@ -186,25 +165,8 @@ function restart_simulation(data)
     end
 end
 
-function positionSphere_cb(position)
-    if (actual_time > max_delay) and not restarting and not JOINT_CONTROL then
-        simBase=sim.getObject(UR5_base)
-        local pos = sim.getObjectPose(targetSphere, -1)
-        
-        for i=1, 3, 1 do
-            local scale = 1
-            if i == 3 then
-                scale = 1
-            end
-            pos[i] = position.data[i] * scale
-        end
-        
-        sim.setObjectPose(targetSphere, -1, pos)
-    end
-end
-
 function velocitySphere_cb(velocity)
-    if (actual_time > max_delay) and not restarting and not JOINT_CONTROL then
+    if (actual_time > max_delay) and not restarting then
             
         local pos = sim.getObjectPose(targetSphere, -1)
         sphere_position = pos
@@ -243,9 +205,6 @@ function sysCall_init()
     name_UR_joints = 'UR5_joint'
     name_UR5_sphere_aux = "UR5_manipSphere"
     move_topic = '/move_command'
-    move_sphere_topic = '/move_sphere_command'
-    speed_joint_topic = '/speed_joint'
-    move_joint_topic = '/move_joint'
     simulation_reset_topic = '/ur5_simulation/reset'
     simulation_position_topic = '/ur5_simulation/jointConfig'
     simulation_tool_position_topic = '/ur5_simulation/ToolPosition'    
@@ -264,7 +223,6 @@ function sysCall_init()
     delay= 0
     
     maxVel = 0.02
-    maxVelJoint = 0.2
     maxAngularVel = 0.03
     maxRec = 1024
 
@@ -286,17 +244,12 @@ function sysCall_init()
     mas_in, off, mul = sim.getJointDependency(jointHandles[joint_test])
     
     store_initial_information()
-    if not JOINT_CONTROL then
-        IK_init()
-    end
+    IK_init()
     
     if simROS then
         sim.addLog(sim.verbosity_scriptinfos, "Ros interface was found.")
         
         move_sub = simROS.subscribe(move_topic, 'std_msgs/Float32MultiArray','velocitySphere_cb')
-        pos_sub = simROS.subscribe(move_sphere_topic, 'std_msgs/Float32MultiArray','positionSphere_cb')
-        speed_joint_sub = simROS.subscribe(speed_joint_topic, 'std_msgs/Float32MultiArray','jointConfigVel_cb')
-        move_joint_sub = simROS.subscribe(move_joint_topic, 'std_msgs/Float32MultiArray','jointConfig_cb')
         sim_pub_reset = simROS.subscribe(simulation_reset_topic, 'std_msgs/Bool','restart_simulation')
         sim_pub_position = simROS.advertise(simulation_position_topic, 'std_msgs/Float32MultiArray')
         sim_pub_torque = simROS.advertise(simulation_torque_topic, 'std_msgs/Float32MultiArray')
@@ -376,21 +329,19 @@ function sysCall_sensing()
         end
         
         if ((actual_time > delay_activate_IK) and not(ik_activated)) then
-            if not JOINT_CONTROL then
-                IK_init()
-            end
+            IK_init()
         end
         
         
     end
+    sim.addLog(sim.verbosity_scriptinfos, actual_time)
+    sim.addLog(sim.verbosity_scriptinfos, "-------")
 end
 
 function sysCall_cleanup()
     if simROS then
         simROS.shutdownSubscriber(move_sub)
         simROS.shutdownSubscriber(sim_pub_reset)
-        simROS.shutdownSubscriber(move_joint_sub)
-        simROS.shutdownSubscriber(speed_joint_sub)
         simROS.shutdownPublisher(sim_pub_position)
         simROS.shutdownPublisher(sim_pub_torque)
         simROS.shutdownPublisher(sim_pub_speed)
@@ -401,4 +352,6 @@ function sysCall_cleanup()
 end
 
 -- See the user manual or the available code snippets for additional callback functions and details
+
+
 
